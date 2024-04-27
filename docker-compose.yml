@@ -13,9 +13,9 @@ services:
   ichiran:
     image: ghcr.io/louismollick/ichiran-http:latest
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
   mokuro:
     image: ghcr.io/louismollick/mokuro-http:latest
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"

@@ -1,6 +1,13 @@
 version: "3"
 
 services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+  
   pg:
     image: ghcr.io/louismollick/ichiran-postgres:latest
     shm_size: "1gb"

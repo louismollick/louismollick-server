@@ -1,0 +1,21 @@
+version: "3"
+
+services:
+  pg:
+    image: ghcr.io/louismollick/ichiran-postgres:latest
+    shm_size: "1gb"
+    environment:
+      POSTGRES_PASSWORD: "password"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - ${PWD}/docker/pgdata:/var/lib/postgresql/data
+
+  ichiran:
+    image: ghcr.io/louismollick/ichiran-http:latest
+    ports:
+      - "3000:3000"
+
+  mokuro:
+    image: ghcr.io/louismollick/mokuro-http:latest
+    ports:
+      - "8000:8000"

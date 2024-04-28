@@ -1,14 +1,13 @@
 services:
   cloudflared:
-    container_name: cloudflared-tunnel
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     command: tunnel run
+    network_mode: "host"
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}
   
   pg:
-    container_name: ichiran-postgres
     image: ghcr.io/louismollick/ichiran-postgres:latest
     shm_size: "1gb"
     environment:
@@ -18,13 +17,11 @@ services:
       - ${PWD}/docker/pgdata:/var/lib/postgresql/data
 
   ichiran:
-    container_name: ichiran-http
     image: ghcr.io/louismollick/ichiran-http:latest
     ports:
       - "127.0.0.1:3000:3000"
 
   mokuro:
-    container_name: mokuro-http
     image: ghcr.io/louismollick/mokuro-http:latest
     ports:
       - "127.0.0.1:8000:8000"

@@ -21,6 +21,11 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
 
+  manga-learning-app:
+    image: ghcr.io/louismollick/manga-learning-app:latest
+    ports:
+      - "127.0.0.1:3001:3001"
+
   mokuro:
     image: ghcr.io/louismollick/mokuro-http:latest
     ports:

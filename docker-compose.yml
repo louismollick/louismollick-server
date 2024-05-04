@@ -23,6 +23,8 @@ services:
 
   manga-learning-app:
     image: ghcr.io/louismollick/manga-learning-app:latest
+    env_file:
+      - .manga.env
     ports:
       - "127.0.0.1:3001:3001"
 

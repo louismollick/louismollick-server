@@ -23,6 +23,7 @@ services:
 
   manga-learning-app:
     image: ghcr.io/louismollick/manga-learning-app:latest
+    network_mode: "host"
     env_file:
       - .manga.env
     ports:

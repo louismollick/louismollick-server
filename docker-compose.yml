@@ -21,15 +21,17 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
 
+  mokuro:
+    image: ghcr.io/louismollick/mokuro-http:latest
+    ports:
+      - "127.0.0.1:3001:3001"
+
   manga-learning-app:
     image: ghcr.io/louismollick/manga-learning-app:latest
     network_mode: "host"
     env_file:
       - .manga.env
     ports:
-      - "127.0.0.1:3001:3001"
-
-  mokuro:
-    image: ghcr.io/louismollick/mokuro-http:latest
-    ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:3002:3002"
+    volumes:
+      - ${PWD}/docker/manga/images:/app/public/images

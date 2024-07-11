@@ -37,6 +37,7 @@ services:
     env_file:
       - .manga.env
     environment:
+      EXT_HOST_URL: "manga-learning-app"
       PORT: 3002
     ports:
       - "127.0.0.1:3002:3002"

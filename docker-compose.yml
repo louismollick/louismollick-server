@@ -18,20 +18,25 @@ services:
 
   ichiran:
     image: ghcr.io/louismollick/ichiran-http:latest
+    environment:
+      PORT: 3000
     ports:
       - "127.0.0.1:3000:3000"
 
   mokuro:
     image: ghcr.io/louismollick/mokuro-http:latest
+    environment:
+      PORT: 3001
     ports:
-      - "127.0.0.1:3001:8000"
+      - "127.0.0.1:3001:3001"
 
   manga-learning-app:
     image: ghcr.io/louismollick/manga-learning-app:latest
-    network_mode: "host"
-    env_file:
-      - .manga.env
-    ports:
-      - "127.0.0.1:3002:3000"
     volumes:
       - ${PWD}/docker/manga/images:/app/public/images
+    env_file:
+      - .manga.env
+    environment:
+      PORT: 3002
+    ports:
+      - "127.0.0.1:3002:3002"

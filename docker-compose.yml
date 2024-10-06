@@ -7,6 +7,13 @@ services:
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}
   
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/config.json
+    command: --interval 30
+
   pg:
     image: ghcr.io/louismollick/ichiran-postgres:latest
     shm_size: "1gb"
@@ -16,39 +23,18 @@ services:
     volumes:
       - ${PWD}/docker/pgdata:/var/lib/postgresql/data
 
-  redis:
-    image: redis:latest
-    restart: always
-    ports:
-      - "6379:6379"
-    volumes:
-      - ${PWD}/docker/redis/data:/data
-    environment:
-      - REDIS_PORT=6379
-      - REDIS_DATABASES=16
-
   ichiran:
     image: ghcr.io/louismollick/ichiran-http:latest
-    environment:
-      PORT: 3000
-    ports:
-      - "127.0.0.1:3000:3000"
-
-  mokuro:
-    image: ghcr.io/louismollick/mokuro-http:latest
+    volumes:
+      - ${PWD}/docker/manga:/app/shared
     environment:
       PORT: 3001
     ports:
       - "127.0.0.1:3001:3001"
 
-  manga-learning-app:
-    image: ghcr.io/louismollick/manga-learning-app:latest
+  bilingualmanga:
+    image: ghcr.io/louismollick/bilingualmanga:latest
     volumes:
       - ${PWD}/docker/manga/images:/app/public/images
-    env_file:
-      - .manga.env
-    environment:
-      EXT_HOST_URL: "manga-learning-app"
-      PORT: 3002
     ports:
-      - "127.0.0.1:3002:3002"
+      - "127.0.0.1:3000:3000"

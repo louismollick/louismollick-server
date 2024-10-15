@@ -26,7 +26,7 @@ services:
   ichiran:
     image: ghcr.io/louismollick/ichiran-http:latest
     volumes:
-      - ${PWD}/docker/manga:/app/shared
+      - ~/bilingualmanga/public/images:/app/shared/images
     environment:
       PORT: 3001
     ports:
@@ -35,6 +35,6 @@ services:
   bilingualmanga:
     image: ghcr.io/louismollick/bilingualmanga:latest
     volumes:
-      - ${PWD}/docker/manga/images:/app/public/images
+      - ~/bilingualmanga/public/images:/app/public/images
     ports:
       - "127.0.0.1:3000:3000"

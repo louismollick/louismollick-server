@@ -1,6 +1,7 @@
 services:
   cloudflared:
     image: cloudflare/cloudflared:latest
+    container_name: cloudflared
     restart: unless-stopped
     command: tunnel run
     network_mode: "host"
@@ -9,13 +10,36 @@ services:
   
   watchtower:
     image: containrrr/watchtower
+    container_name: watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /root/.docker/config.json:/config.json
     command: --interval 30
 
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    ports:
+      - "127.0.0.1:8888:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    volumes:
+      - ${PWD}/docker/pgadmin:/var/lib/pgadmin
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "127.0.0.1:8889:80"
+    volumes:
+      - /root/public:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+
   pg:
     image: ghcr.io/louismollick/ichiran-postgres:latest
+    container_name: pg
     shm_size: "1gb"
     environment:
       POSTGRES_PASSWORD: "password"
@@ -25,16 +49,19 @@ services:
 
   ichiran:
     image: ghcr.io/louismollick/ichiran-http:latest
+    container_name: ichiran
     volumes:
-      - ~/bilingualmanga/public/images:/app/shared/images
+      - /root/public/images:/app/images
     environment:
       PORT: 3001
+      DATABASE_URL: "postgres://postgres:password@pg:5432/jmdict"
     ports:
       - "127.0.0.1:3001:3001"
 
   bilingualmanga:
     image: ghcr.io/louismollick/bilingualmanga:latest
+    container_name: bilingualmanga
     volumes:
-      - ~/bilingualmanga/public/images:/app/public/images
+      - /root/public/images:/app/images
     ports:
       - "127.0.0.1:3000:3000"

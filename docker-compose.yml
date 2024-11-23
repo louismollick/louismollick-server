@@ -16,6 +16,15 @@ services:
       - /root/.docker/config.json:/config.json
     command: --interval 30
 
+  anki: 
+    image: pnorcross/anki-desktop:latest
+    volumes:
+      - ${PWD}/docker/anki:/config/app
+    ports: 
+      - 8886:3000
+      # Anki Connect port
+      - 8765:8765
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
@@ -34,7 +43,7 @@ services:
     ports:
       - "127.0.0.1:8889:80"
     volumes:
-      - /root/public:/usr/share/nginx/html
+      - ~/bilingualmanga/images:/usr/share/nginx/html/images
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
 
   pg:
@@ -51,7 +60,7 @@ services:
     image: ghcr.io/louismollick/ichiran-http:latest
     container_name: ichiran
     volumes:
-      - /root/public/images:/app/images
+      - ~/bilingualmanga/images:/app/images
     environment:
       PORT: 3001
       DATABASE_URL: "postgres://postgres:password@pg:5432/jmdict"
@@ -62,6 +71,6 @@ services:
     image: ghcr.io/louismollick/bilingualmanga:latest
     container_name: bilingualmanga
     volumes:
-      - /root/public/images:/app/images
+      - ~/bilingualmanga/images:/app/images
     ports:
       - "127.0.0.1:3000:3000"

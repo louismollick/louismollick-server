@@ -17,13 +17,15 @@ services:
     command: --interval 30
 
   anki: 
-    image: pnorcross/anki-desktop:latest
+    image: ghcr.io/louismollick/anki-desktop:latest
+    container_name: anki
     volumes:
-      - ${PWD}/docker/anki:/config/app
+      - ${PWD}/docker/anki:/config/.local/share/Anki2
+    environment:
+      TZ: 'America/New_York'
     ports: 
-      - 8886:3000
-      # Anki Connect port
-      - 8765:8765
+      - 8886:3000 # RDP
+      - "127.0.0.1:8765:8765" # Anki Connect port
 
   pgadmin:
     image: dpage/pgadmin4

@@ -57,7 +57,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   spotify-lyrics-api:
-    image: akashrchandran/spotify-lyrics-api:latest
+    image: ghcr.io/louismollick/spotify-lyrics-api:main
     restart: unless-stopped
     env_file:
       - .env-lyrics

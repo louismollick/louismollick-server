@@ -216,7 +216,7 @@ docker compose restart anki-desktop
 
 ### Anki API or lyrics API returns the wrong route
 
-This stack depends on Traefik stripping the `/api` prefix before proxying upstream. If requests fail, inspect the router and middleware labels in [`docker-compose.yml`](/Users/mollicl/personal/louismollick-server/docker-compose.yml).
+This stack depends on Traefik stripping the `/api` prefix before proxying upstream. If requests fail, inspect the router and middleware labels in [`docker-compose.yml`](./docker-compose.yml).
 
 ## Notes
 

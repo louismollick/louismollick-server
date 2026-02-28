@@ -1,2 +1,5 @@
 *.env
+.env-anki
+.env-lyrics
+traefik/acme.json
 docker/

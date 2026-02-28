@@ -1,78 +1,93 @@
 services:
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared
+  traefik:
+    image: traefik:v3.3
     restart: unless-stopped
-    command: tunnel run
-    network_mode: "host"
-    environment:
-      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
-  
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --certificatesresolvers.le.acme.email=louismollick@gmail.com
+      - --certificatesresolvers.le.acme.storage=/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --api.dashboard=false
+      - --log.level=INFO
+      - --accesslog=true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/acme.json:/acme.json
+    networks:
+      - traefik-public
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  anki-desktop:
+    image: ghcr.io/louismollick/anki-desktop-docker:main
+    restart: unless-stopped
+    env_file:
+      - .env-anki
+    volumes:
+      - ./volumes/anki_data:/config
+    networks:
+      - traefik-public
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.anki-ui.rule=Host(`anki.louismollick.com`)"
+      - traefik.http.routers.anki-ui.entrypoints=websecure
+      - traefik.http.routers.anki-ui.tls=true
+      - traefik.http.routers.anki-ui.tls.certresolver=le
+      - traefik.http.routers.anki-ui.service=anki-ui
+      - traefik.http.routers.anki-ui.priority=10
+      - traefik.http.services.anki-ui.loadbalancer.server.port=3000
+      - "traefik.http.routers.anki-api.rule=Host(`anki.louismollick.com`) && PathPrefix(`/api`)"
+      - traefik.http.routers.anki-api.entrypoints=websecure
+      - traefik.http.routers.anki-api.tls=true
+      - traefik.http.routers.anki-api.tls.certresolver=le
+      - traefik.http.routers.anki-api.service=anki-api
+      - traefik.http.routers.anki-api.priority=100
+      - traefik.http.routers.anki-api.middlewares=anki-api-strip
+      - traefik.http.services.anki-api.loadbalancer.server.port=8765
+      - traefik.http.middlewares.anki-api-strip.stripprefix.prefixes=/api
+      - com.centurylinklabs.watchtower.enable=true
+
+  spotify-lyrics-api:
+    image: akashrchandran/spotify-lyrics-api:latest
+    platform: linux/amd64
+    restart: unless-stopped
+    env_file:
+      - .env-lyrics
+    networks:
+      - traefik-public
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.lyrics-api.rule=Host(`lyrics.louismollick.com`) && PathPrefix(`/api`)"
+      - traefik.http.routers.lyrics-api.entrypoints=websecure
+      - traefik.http.routers.lyrics-api.tls=true
+      - traefik.http.routers.lyrics-api.tls.certresolver=le
+      - traefik.http.routers.lyrics-api.service=lyrics-api
+      - traefik.http.routers.lyrics-api.middlewares=lyrics-api-strip
+      - traefik.http.services.lyrics-api.loadbalancer.server.port=8080
+      - traefik.http.middlewares.lyrics-api-strip.stripprefix.prefixes=/api
+      - com.centurylinklabs.watchtower.enable=true
+
   watchtower:
-    image: containrrr/watchtower
-    container_name: watchtower
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    command:
+      - --interval
+      - "300"
+      - --cleanup
+      - --rolling-restart
+      - --label-enable
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /root/.docker/config.json:/config.json
-    command: --interval 30
 
-  anki: 
-    image: ghcr.io/louismollick/anki-desktop:latest
-    container_name: anki
-    volumes:
-      - ${PWD}/docker/anki:/config/.local/share/Anki2
-    environment:
-      TZ: 'America/New_York'
-    ports: 
-      - 8886:3000 # RDP
-      - "127.0.0.1:8765:8765" # Anki Connect port
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    restart: always
-    ports:
-      - "127.0.0.1:8888:80"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-    volumes:
-      - ${PWD}/docker/pgadmin:/var/lib/pgadmin
-
-  nginx:
-    image: nginx:alpine
-    container_name: nginx
-    ports:
-      - "127.0.0.1:8889:80"
-    volumes:
-      - ~/bilingualmanga/images:/usr/share/nginx/html/images
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-
-  pg:
-    image: ghcr.io/louismollick/ichiran-postgres:latest
-    container_name: pg
-    shm_size: "1gb"
-    environment:
-      POSTGRES_PASSWORD: "password"
-      PGDATA: "/var/lib/postgresql/data/pgdata"
-    volumes:
-      - ${PWD}/docker/pgdata:/var/lib/postgresql/data
-
-  ichiran:
-    image: ghcr.io/louismollick/ichiran-http:latest
-    container_name: ichiran
-    volumes:
-      - ~/bilingualmanga/images:/app/images
-    environment:
-      PORT: 3001
-      DATABASE_URL: "postgres://postgres:password@pg:5432/jmdict"
-    ports:
-      - "127.0.0.1:3001:3001"
-
-  bilingualmanga:
-    image: ghcr.io/louismollick/bilingualmanga:latest
-    container_name: bilingualmanga
-    volumes:
-      - ~/bilingualmanga/images:/app/images
-    ports:
-      - "127.0.0.1:3000:3000"
+networks:
+  traefik-public:
+    name: traefik-public

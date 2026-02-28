@@ -58,7 +58,6 @@ services:
 
   spotify-lyrics-api:
     image: akashrchandran/spotify-lyrics-api:latest
-    platform: linux/amd64
     restart: unless-stopped
     env_file:
       - .env-lyrics

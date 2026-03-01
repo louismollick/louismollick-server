@@ -29,6 +29,7 @@ Before starting:
 - [`/.env-anki.example`](/Users/mollicl/personal/louismollick-server/.env-anki.example): example runtime variables for Anki
 - [`/.env-lyrics.example`](/Users/mollicl/personal/louismollick-server/.env-lyrics.example): example runtime variables for lyrics API
 - [`/.env-lyricsu.example`](/Users/mollicl/personal/louismollick-server/.env-lyricsu.example): example runtime variables for the lyrics UI
+- [`/secrets/youtube-cookies.txt`](/Users/mollicl/personal/louismollick-server/secrets/youtube-cookies.txt): local-only YouTube cookies file mounted into the `lyricsu` container (create this yourself; it is gitignored)
 - [`/traefik/acme.json`](/Users/mollicl/personal/louismollick-server/traefik/acme.json): runtime ACME state file created locally on the server
 - [`/volumes/anki_data`](/Users/mollicl/personal/louismollick-server/volumes/anki_data): persistent Anki data
 
@@ -56,7 +57,32 @@ Then edit them:
   - Set `SPOTIFY_CLIENT_ID` to your Spotify application client ID
   - Set `SPOTIFY_CLIENT_SECRET` to your Spotify application client secret
 
+### 1b. Add the YouTube cookies file for Lyricsu
+
+Create the secrets directory and place a fresh Netscape-format `cookies.txt` export at:
+
+```bash
+mkdir -p secrets
+cp /path/to/cookies.txt secrets/youtube-cookies.txt
+chmod 600 secrets/youtube-cookies.txt
+```
+
+The `lyricsu` service mounts this file into the container at `/app/secrets/youtube-cookies.txt`, and both `yt-dlp` and `youtubei.js` read from it.
+
+To generate that file, use the `yt-dlp` browser-export flow described in the official guide:
+
+- [yt-dlp FAQ: How do I pass cookies to yt-dlp?](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp)
+
+The practical export flow is:
+
+```bash
+yt-dlp --cookies-from-browser firefox --cookies /tmp/youtube-cookies.txt --skip-download "https://music.youtube.com/watch?v=X217TdX27fk"
+```
+
+Then copy the generated file to `secrets/youtube-cookies.txt` on the VPS.
+
 Runtime files `.env-anki`, `.env-lyrics`, and `.env-lyricsu` are ignored by git.
+The `secrets/` directory is also ignored by git.
 
 ### 2. Create the ACME storage file
 
@@ -91,6 +117,7 @@ The Compose stack includes:
 - `traefik`: reverse proxy, HTTPS, certificate management
 - `anki-desktop`: Anki desktop image with KasmVNC on internal port `3000` and AnkiConnect on internal port `8765`
 - `lyricsu`: lyrics UI on internal port `3000`, configured to call the local `spotify-lyrics-api` container
+  - Also mounts `./secrets/youtube-cookies.txt` into `/app/secrets/youtube-cookies.txt` for YouTube metadata/media access
 - `spotify-lyrics-api`: lyrics service on internal port `8080`
 - `watchtower`: periodically checks for newer images and updates labeled containers
 
@@ -210,6 +237,7 @@ Make sure these files exist:
 - `.env-anki`
 - `.env-lyrics`
 - `.env-lyricsu`
+- `secrets/youtube-cookies.txt`
 
 The `.example` files are templates only and are not loaded automatically by Compose.
 

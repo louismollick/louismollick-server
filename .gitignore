@@ -4,3 +4,4 @@
 .env-lyricsu
 traefik/acme.json
 docker/
+secrets/

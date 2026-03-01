@@ -82,6 +82,9 @@ services:
       - .env-lyricsu
     environment:
       SPOTIFY_LYRICS_API_URL: http://spotify-lyrics-api:8080
+      YTDLP_COOKIES_PATH: /app/secrets/youtube-cookies.txt
+    volumes:
+      - ./secrets/youtube-cookies.txt:/app/secrets/youtube-cookies.txt:ro
     networks:
       - traefik-public
     labels:

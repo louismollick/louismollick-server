@@ -65,15 +65,12 @@ services:
       - traefik-public
     labels:
       - traefik.enable=true
-      - "traefik.http.routers.lyrics-api.rule=Host(`lyrics.louismollick.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.lyrics-api.rule=Host(`spotify-lyrics-api.louismollick.com`)"
       - traefik.http.routers.lyrics-api.entrypoints=websecure
       - traefik.http.routers.lyrics-api.tls=true
       - traefik.http.routers.lyrics-api.tls.certresolver=le
       - traefik.http.routers.lyrics-api.service=lyrics-api
-      - traefik.http.routers.lyrics-api.priority=100
-      - traefik.http.routers.lyrics-api.middlewares=lyrics-api-strip
       - traefik.http.services.lyrics-api.loadbalancer.server.port=8080
-      - traefik.http.middlewares.lyrics-api-strip.stripprefix.prefixes=/api
       - com.centurylinklabs.watchtower.enable=true
 
   lyricsu:

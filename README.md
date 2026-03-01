@@ -7,7 +7,7 @@ Current services:
 - `https://anki.louismollick.com/` -> Anki desktop via KasmVNC
 - `https://anki.louismollick.com/api` -> AnkiConnect API
 - `https://lyrics.louismollick.com/` -> Lyricsu web app
-- `https://lyrics.louismollick.com/api` -> Spotify lyrics API
+- `https://spotify-lyrics-api.louismollick.com/` -> Spotify lyrics API
 
 Traefik is the only public entrypoint. It listens on ports `80` and `443`, redirects HTTP to HTTPS, and stores ACME certificate state in `traefik/acme.json`.
 
@@ -20,6 +20,7 @@ Before starting:
 - DNS records pointing at the VPS public IP:
   - `anki.louismollick.com`
   - `lyrics.louismollick.com`
+  - `spotify-lyrics-api.louismollick.com`
 - Ports `80/tcp` and `443/tcp` open in the VPS firewall / cloud security group
 
 ## Files In This Repo
@@ -126,7 +127,7 @@ Open these URLs in a browser:
 - `https://anki.louismollick.com/`
 - `https://lyrics.louismollick.com/`
 - `https://anki.louismollick.com/api`
-- `https://lyrics.louismollick.com/api`
+- `https://spotify-lyrics-api.louismollick.com/`
 
 Expected behavior:
 
@@ -134,13 +135,13 @@ Expected behavior:
 - `https://anki.louismollick.com/` loads the Anki KasmVNC page
 - `https://lyrics.louismollick.com/` loads the Lyricsu UI
 - `https://anki.louismollick.com/api` reaches AnkiConnect through Traefik
-- `https://lyrics.louismollick.com/api` reaches the lyrics API through Traefik
+- `https://spotify-lyrics-api.louismollick.com/` reaches the lyrics API through Traefik
 
 You can also test redirects from the server:
 
 ```bash
 curl -I http://anki.louismollick.com/
-curl -I http://lyrics.louismollick.com/api
+curl -I http://spotify-lyrics-api.louismollick.com/
 ```
 
 ## Updating Services

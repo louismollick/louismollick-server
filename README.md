@@ -6,6 +6,7 @@ Current services:
 
 - `https://anki.louismollick.com/` -> Anki desktop via KasmVNC
 - `https://anki.louismollick.com/api` -> AnkiConnect API
+- `https://lyrics.louismollick.com/` -> Lyricsu web app
 - `https://lyrics.louismollick.com/api` -> Spotify lyrics API
 
 Traefik is the only public entrypoint. It listens on ports `80` and `443`, redirects HTTP to HTTPS, and stores ACME certificate state in `traefik/acme.json`.
@@ -26,6 +27,7 @@ Before starting:
 - [`docker-compose.yml`](/Users/mollicl/personal/louismollick-server/docker-compose.yml): main stack definition
 - [`/.env-anki.example`](/Users/mollicl/personal/louismollick-server/.env-anki.example): example runtime variables for Anki
 - [`/.env-lyrics.example`](/Users/mollicl/personal/louismollick-server/.env-lyrics.example): example runtime variables for lyrics API
+- [`/.env-lyricsu.example`](/Users/mollicl/personal/louismollick-server/.env-lyricsu.example): example runtime variables for the lyrics UI
 - [`/traefik/acme.json`](/Users/mollicl/personal/louismollick-server/traefik/acme.json): runtime ACME state file created locally on the server
 - [`/volumes/anki_data`](/Users/mollicl/personal/louismollick-server/volumes/anki_data): persistent Anki data
 
@@ -38,6 +40,7 @@ Copy the committed examples into real runtime files:
 ```bash
 cp .env-anki.example .env-anki
 cp .env-lyrics.example .env-lyrics
+cp .env-lyricsu.example .env-lyricsu
 ```
 
 Then edit them:
@@ -48,8 +51,11 @@ Then edit them:
   - Adjust `TZ` if you do not want `UTC`
 - In `.env-lyrics`:
   - Set `SP_DC` to your Spotify `sp_dc` cookie value
+- In `.env-lyricsu`:
+  - Set `SPOTIFY_CLIENT_ID` to your Spotify application client ID
+  - Set `SPOTIFY_CLIENT_SECRET` to your Spotify application client secret
 
-Runtime files `.env-anki` and `.env-lyrics` are ignored by git.
+Runtime files `.env-anki`, `.env-lyrics`, and `.env-lyricsu` are ignored by git.
 
 ### 2. Create the ACME storage file
 
@@ -83,6 +89,7 @@ The Compose stack includes:
 
 - `traefik`: reverse proxy, HTTPS, certificate management
 - `anki-desktop`: Anki desktop image with KasmVNC on internal port `3000` and AnkiConnect on internal port `8765`
+- `lyricsu`: lyrics UI on internal port `3000`, configured to call the local `spotify-lyrics-api` container
 - `spotify-lyrics-api`: lyrics service on internal port `8080`
 - `watchtower`: periodically checks for newer images and updates labeled containers
 
@@ -117,6 +124,7 @@ docker compose logs -f watchtower
 Open these URLs in a browser:
 
 - `https://anki.louismollick.com/`
+- `https://lyrics.louismollick.com/`
 - `https://anki.louismollick.com/api`
 - `https://lyrics.louismollick.com/api`
 
@@ -124,6 +132,7 @@ Expected behavior:
 
 - `http://` requests redirect to `https://`
 - `https://anki.louismollick.com/` loads the Anki KasmVNC page
+- `https://lyrics.louismollick.com/` loads the Lyricsu UI
 - `https://anki.louismollick.com/api` reaches AnkiConnect through Traefik
 - `https://lyrics.louismollick.com/api` reaches the lyrics API through Traefik
 
@@ -168,6 +177,7 @@ Restart one service:
 ```bash
 docker compose restart traefik
 docker compose restart anki-desktop
+docker compose restart lyricsu
 docker compose restart spotify-lyrics-api
 ```
 
@@ -198,6 +208,7 @@ Make sure these files exist:
 
 - `.env-anki`
 - `.env-lyrics`
+- `.env-lyricsu`
 
 The `.example` files are templates only and are not loaded automatically by Compose.
 

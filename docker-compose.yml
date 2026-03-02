@@ -73,29 +73,26 @@ services:
       - traefik.http.services.lyrics-api.loadbalancer.server.port=8080
       - com.centurylinklabs.watchtower.enable=true
 
-  lyricsu:
-    image: ghcr.io/louismollick/lyricsu:main
+  navidrome:
+    image: deluan/navidrome:latest
     restart: unless-stopped
-    depends_on:
-      - spotify-lyrics-api
     env_file:
-      - .env-lyricsu
+      - .env-navidrome
     environment:
-      SPOTIFY_LYRICS_API_URL: http://spotify-lyrics-api:8080
-      YTDLP_COOKIES_PATH: /app/secrets/youtube-cookies.txt
+      ND_DATAFOLDER: /data
+      ND_MUSICFOLDER: /music
     volumes:
-      - ./secrets/youtube-cookies.txt:/app/secrets/youtube-cookies.txt:ro
+      - ./volumes/navidrome_data:/data
+      - ./music:/music:ro
     networks:
       - traefik-public
     labels:
       - traefik.enable=true
-      - "traefik.http.routers.lyrics-ui.rule=Host(`lyrics.louismollick.com`)"
-      - traefik.http.routers.lyrics-ui.entrypoints=websecure
-      - traefik.http.routers.lyrics-ui.tls=true
-      - traefik.http.routers.lyrics-ui.tls.certresolver=le
-      - traefik.http.routers.lyrics-ui.service=lyrics-ui
-      - traefik.http.routers.lyrics-ui.priority=10
-      - traefik.http.services.lyrics-ui.loadbalancer.server.port=3000
+      - "traefik.http.routers.navidrome.rule=Host(`music.louismollick.com`)"
+      - traefik.http.routers.navidrome.entrypoints=websecure
+      - traefik.http.routers.navidrome.tls=true
+      - traefik.http.routers.navidrome.tls.certresolver=le
+      - traefik.http.services.navidrome.loadbalancer.server.port=4533
       - com.centurylinklabs.watchtower.enable=true
 
   watchtower:

@@ -1,7 +1,8 @@
 *.env
 .env-anki
 .env-lyrics
-.env-lyricsu
+.env-navidrome
 traefik/acme.json
 docker/
-secrets/
+music/
+volumes/navidrome_data/

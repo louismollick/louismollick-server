@@ -1,5 +1,6 @@
 *.env
 .env-anki
+.env-actual-ai
 .env-lyrics
 .env-navidrome
 traefik/acme.json

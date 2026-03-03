@@ -29,6 +29,7 @@ Before starting:
 
 - [`docker-compose.yml`](/Users/mollicl/personal/louismollick-server/docker-compose.yml): main stack definition
 - [`/.env-anki.example`](/Users/mollicl/personal/louismollick-server/.env-anki.example): example runtime variables for Anki
+- [`/.env-actual-ai.example`](/Users/mollicl/personal/louismollick-server/.env-actual-ai.example): example runtime variables for Actual AI
 - [`/.env-lyrics.example`](/Users/mollicl/personal/louismollick-server/.env-lyrics.example): example runtime variables for lyrics API
 - [`/.env-navidrome.example`](/Users/mollicl/personal/louismollick-server/.env-navidrome.example): example runtime variables for Navidrome
 - [`/music`](/Users/mollicl/personal/louismollick-server/music): local music library mounted read-only into Navidrome (create this yourself; it is gitignored)
@@ -45,6 +46,7 @@ Copy the committed examples into real runtime files:
 
 ```bash
 cp .env-anki.example .env-anki
+cp .env-actual-ai.example .env-actual-ai
 cp .env-lyrics.example .env-lyrics
 cp .env-navidrome.example .env-navidrome
 ```
@@ -55,6 +57,12 @@ Then edit them:
   - Set `PASSWORD` to a long random password
   - Optionally set `ANKIWEB_USER` plus either `ANKIWEB_PASSWORD` or `ANKIWEB_SYNC_KEY`
   - Adjust `TZ` if you do not want `UTC`
+- In `.env-actual-ai`:
+  - Set `ACTUAL_PASSWORD` to the password you use to log into Actual
+  - Set `ACTUAL_BUDGET_ID` to Actual's Sync ID from `Settings -> Show advanced settings`
+  - Set `OPENAI_API_KEY` to your OpenAI API key
+  - If your budget uses end-to-end encryption, set `ACTUAL_E2E_PASSWORD`
+  - The example starts in `dryRun`; remove `"dryRun"` from `FEATURES` after you verify the logs
 - In `.env-lyrics`:
   - Set `SP_DC` to your Spotify `sp_dc` cookie value
 - In `.env-navidrome`:
@@ -73,7 +81,7 @@ cp -R /path/to/your/music/. music/
 
 The `navidrome` service mounts this directory read-only into the container at `/music`.
 
-Runtime files `.env-anki`, `.env-lyrics`, and `.env-navidrome` are ignored by git.
+Runtime files `.env-anki`, `.env-actual-ai`, `.env-lyrics`, and `.env-navidrome` are ignored by git.
 The `music/` directory and the `volumes/actual_data/` and `volumes/navidrome_data/` directories are also ignored by git.
 
 ### 2. Create the ACME storage file
@@ -109,6 +117,7 @@ The Compose stack includes:
 - `traefik`: reverse proxy, HTTPS, certificate management
 - `anki-desktop`: Anki desktop image with KasmVNC on internal port `3000` and AnkiConnect on internal port `8765`
 - `actual-server`: Actual Budget on internal port `5006`, with persistent state in `./volumes/actual_data`
+- `actual-ai`: background transaction classifier for Actual Budget, connected only to the internal Actual network
 - `navidrome`: music server on internal port `4533`, with persistent state in `./volumes/navidrome_data`
   - Mounts `./music` read-only into `/music` so your catalog is available to the server
 - `spotify-lyrics-api`: lyrics service on internal port `8080`
@@ -138,6 +147,12 @@ Watchtower:
 
 ```bash
 docker compose logs -f watchtower
+```
+
+Actual AI:
+
+```bash
+docker compose logs -f actual-ai
 ```
 
 ### Confirm HTTPS routes
@@ -201,6 +216,7 @@ Restart one service:
 ```bash
 docker compose restart traefik
 docker compose restart anki-desktop
+docker compose restart actual-ai
 docker compose restart actual-server
 docker compose restart navidrome
 docker compose restart spotify-lyrics-api
@@ -232,6 +248,7 @@ docker compose logs traefik
 Make sure these files exist:
 
 - `.env-anki`
+- `.env-actual-ai`
 - `.env-lyrics`
 - `.env-navidrome`
 

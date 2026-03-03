@@ -96,12 +96,13 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   actual-server:
-    image: actualbudget/actual-server:latest
+    image: docker.io/actualbudget/actual-server:26.3.0@sha256:eb8bc26f53025e07e464594c12d77c52c4b95840c8dadd9b95c4f0c4660f8ad2
     restart: unless-stopped
     volumes:
       - ./volumes/actual_data:/data
     networks:
       - traefik-public
+      - actual-internal
     labels:
       - traefik.enable=true
       - "traefik.http.routers.actual-server.rule=Host(`budget.louismollick.com`)"
@@ -110,6 +111,16 @@ services:
       - traefik.http.routers.actual-server.tls.certresolver=le
       - traefik.http.services.actual-server.loadbalancer.server.port=5006
       - com.centurylinklabs.watchtower.enable=true
+
+  actual-ai:
+    image: docker.io/sakowicz/actual-ai:2.3.0@sha256:f3ba0b94dccee8f52ff77f417dc0c9f6f9a3dfce145dd05e9cf99f9cc07397de
+    restart: unless-stopped
+    depends_on:
+      - actual-server
+    env_file:
+      - .env-actual-ai
+    networks:
+      - actual-internal
 
   watchtower:
     image: containrrr/watchtower:latest
@@ -126,3 +137,5 @@ services:
 networks:
   traefik-public:
     name: traefik-public
+  actual-internal:
+    internal: true

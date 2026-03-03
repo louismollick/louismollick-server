@@ -6,6 +6,7 @@ Current services:
 
 - `https://anki.louismollick.com/` -> Anki desktop via KasmVNC
 - `https://anki.louismollick.com/api` -> AnkiConnect API
+- `https://budget.louismollick.com/` -> Actual Budget
 - `https://music.louismollick.com/` -> Navidrome music server
 - `https://spotify-lyrics-api.louismollick.com/` -> Spotify lyrics API
 
@@ -19,6 +20,7 @@ Before starting:
 - Docker Compose plugin installed (`docker compose`)
 - DNS records pointing at the VPS public IP:
   - `anki.louismollick.com`
+  - `budget.louismollick.com`
   - `music.louismollick.com`
   - `spotify-lyrics-api.louismollick.com`
 - Ports `80/tcp` and `443/tcp` open in the VPS firewall / cloud security group
@@ -32,6 +34,7 @@ Before starting:
 - [`/music`](/Users/mollicl/personal/louismollick-server/music): local music library mounted read-only into Navidrome (create this yourself; it is gitignored)
 - [`/traefik/acme.json`](/Users/mollicl/personal/louismollick-server/traefik/acme.json): runtime ACME state file created locally on the server
 - [`/volumes/anki_data`](/Users/mollicl/personal/louismollick-server/volumes/anki_data): persistent Anki data
+- [`/volumes/actual_data`](/Users/mollicl/personal/louismollick-server/volumes/actual_data): persistent Actual Budget data (`/data` in the container)
 - [`/volumes/navidrome_data`](/Users/mollicl/personal/louismollick-server/volumes/navidrome_data): persistent Navidrome state (database, cache, artwork)
 
 ## Getting Started
@@ -71,7 +74,7 @@ cp -R /path/to/your/music/. music/
 The `navidrome` service mounts this directory read-only into the container at `/music`.
 
 Runtime files `.env-anki`, `.env-lyrics`, and `.env-navidrome` are ignored by git.
-The `music/` directory and `volumes/navidrome_data/` are also ignored by git.
+The `music/` directory and the `volumes/actual_data/` and `volumes/navidrome_data/` directories are also ignored by git.
 
 ### 2. Create the ACME storage file
 
@@ -105,6 +108,7 @@ The Compose stack includes:
 
 - `traefik`: reverse proxy, HTTPS, certificate management
 - `anki-desktop`: Anki desktop image with KasmVNC on internal port `3000` and AnkiConnect on internal port `8765`
+- `actual-server`: Actual Budget on internal port `5006`, with persistent state in `./volumes/actual_data`
 - `navidrome`: music server on internal port `4533`, with persistent state in `./volumes/navidrome_data`
   - Mounts `./music` read-only into `/music` so your catalog is available to the server
 - `spotify-lyrics-api`: lyrics service on internal port `8080`
@@ -141,6 +145,7 @@ docker compose logs -f watchtower
 Open these URLs in a browser:
 
 - `https://anki.louismollick.com/`
+- `https://budget.louismollick.com/`
 - `https://music.louismollick.com/`
 - `https://anki.louismollick.com/api`
 - `https://spotify-lyrics-api.louismollick.com/`
@@ -149,6 +154,7 @@ Expected behavior:
 
 - `http://` requests redirect to `https://`
 - `https://anki.louismollick.com/` loads the Anki KasmVNC page
+- `https://budget.louismollick.com/` loads the Actual Budget UI
 - `https://music.louismollick.com/` loads the Navidrome UI
 - `https://anki.louismollick.com/api` reaches AnkiConnect through Traefik
 - `https://spotify-lyrics-api.louismollick.com/` reaches the lyrics API through Traefik
@@ -157,6 +163,7 @@ You can also test redirects from the server:
 
 ```bash
 curl -I http://anki.louismollick.com/
+curl -I http://budget.louismollick.com/
 curl -I http://spotify-lyrics-api.louismollick.com/
 ```
 
@@ -194,6 +201,7 @@ Restart one service:
 ```bash
 docker compose restart traefik
 docker compose restart anki-desktop
+docker compose restart actual-server
 docker compose restart navidrome
 docker compose restart spotify-lyrics-api
 ```
@@ -256,6 +264,7 @@ This stack depends on Traefik stripping the `/api` prefix before proxying upstre
 
 - `traefik/acme.json` contains sensitive certificate/account state. Keep it private and do not hand-edit it while Traefik is running.
 - Persistent Anki data is stored under `./volumes/anki_data`.
+- Persistent Actual Budget data is stored under `./volumes/actual_data`.
 - Persistent Navidrome state is stored under `./volumes/navidrome_data`.
 - The music catalog served by Navidrome is read from `./music`.
 - The Traefik dashboard is intentionally not exposed.

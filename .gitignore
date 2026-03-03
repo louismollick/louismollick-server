@@ -5,4 +5,5 @@
 traefik/acme.json
 docker/
 music/
+volumes/actual_data/
 volumes/navidrome_data/

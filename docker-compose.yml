@@ -95,6 +95,22 @@ services:
       - traefik.http.services.navidrome.loadbalancer.server.port=4533
       - com.centurylinklabs.watchtower.enable=true
 
+  actual-server:
+    image: actualbudget/actual-server:latest
+    restart: unless-stopped
+    volumes:
+      - ./volumes/actual_data:/data
+    networks:
+      - traefik-public
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.actual-server.rule=Host(`budget.louismollick.com`)"
+      - traefik.http.routers.actual-server.entrypoints=websecure
+      - traefik.http.routers.actual-server.tls=true
+      - traefik.http.routers.actual-server.tls.certresolver=le
+      - traefik.http.services.actual-server.loadbalancer.server.port=5006
+      - com.centurylinklabs.watchtower.enable=true
+
   watchtower:
     image: containrrr/watchtower:latest
     restart: unless-stopped

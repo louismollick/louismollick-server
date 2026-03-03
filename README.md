@@ -117,7 +117,7 @@ The Compose stack includes:
 - `traefik`: reverse proxy, HTTPS, certificate management
 - `anki-desktop`: Anki desktop image with KasmVNC on internal port `3000` and AnkiConnect on internal port `8765`
 - `actual-server`: Actual Budget on internal port `5006`, with persistent state in `./volumes/actual_data`
-- `actual-ai`: background transaction classifier for Actual Budget, connected only to the internal Actual network
+- `actual-ai`: background transaction classifier for Actual Budget, connected to the internal Actual network and the default bridge network for outbound access to OpenAI
 - `navidrome`: music server on internal port `4533`, with persistent state in `./volumes/navidrome_data`
   - Mounts `./music` read-only into `/music` so your catalog is available to the server
 - `spotify-lyrics-api`: lyrics service on internal port `8080`

@@ -119,8 +119,12 @@ services:
       - actual-server
     env_file:
       - .env-actual-ai
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     networks:
       - actual-internal
+      - default
 
   watchtower:
     image: containrrr/watchtower:latest

@@ -228,6 +228,25 @@ View logs:
 docker compose logs -f
 ```
 
+## Reset Actual AI Classifications
+
+If the Actual UI shows transactions as uncategorized but `actual-ai` still logs `Already has a category`, you can force-clear the category field through the Actual API instead of relying on the GUI.
+
+This repo includes a helper script that runs inside the existing `actual-ai` container:
+
+```bash
+scripts/reset-actual-ai-transactions.sh
+```
+
+The default mode is a dry-run. It scans on-budget expense transactions, clears the `category` field, and removes `#actual-ai` / `#actual-ai-miss` tags from notes.
+
+To apply the changes:
+
+```bash
+scripts/reset-actual-ai-transactions.sh --apply
+docker compose restart actual-ai
+```
+
 ## Troubleshooting
 
 ### Certificates are not being issued

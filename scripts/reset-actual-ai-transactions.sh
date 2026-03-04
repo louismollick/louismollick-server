@@ -44,6 +44,7 @@ docker compose exec -T \
   "$service_name" \
   node --input-type=module - <<'EOF'
 import * as actual from '@actual-app/api';
+import fs from 'node:fs';
 
 const serverURL = process.env.ACTUAL_SERVER_URL;
 const password = process.env.ACTUAL_PASSWORD;
@@ -96,6 +97,8 @@ function isEligibleExpense(transaction, offBudgetAccountIds) {
 
 async function main() {
   console.log(`Reset mode: ${shouldApply ? 'APPLY' : 'DRY RUN'}`);
+
+  fs.mkdirSync(dataDir, { recursive: true });
 
   await actual.init({
     dataDir,

@@ -62,6 +62,7 @@ Then edit them:
   - Set `ACTUAL_BUDGET_ID` to Actual's Sync ID from `Settings -> Show advanced settings`
   - Set `OPENAI_API_KEY` to your OpenAI API key
   - If your budget uses end-to-end encryption, set `ACTUAL_E2E_PASSWORD`
+  - Adjust `CLASSIFICATION_SCHEDULE_CRON` if you want a different rescan interval; the example runs hourly
   - The example starts in `dryRun`; remove `"dryRun"` from `FEATURES` after you verify the logs
 - In `.env-lyrics`:
   - Set `SP_DC` to your Spotify `sp_dc` cookie value

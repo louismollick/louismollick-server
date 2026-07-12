@@ -10,6 +10,10 @@ Current services:
 - `https://music.louismollick.com/` -> Navidrome music server
 - `https://spotify-lyrics-api.louismollick.com/` -> Spotify lyrics API
 
+Additional stack config in this repo:
+
+- `minecraft-server/` -> separate Paper Minecraft deployment on `168.138.74.194:25565`
+
 Traefik is the only public entrypoint. It listens on ports `80` and `443`, redirects HTTP to HTTPS, and stores ACME certificate state in `traefik/acme.json`.
 
 ## Requirements

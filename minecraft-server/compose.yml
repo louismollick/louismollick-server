@@ -1,0 +1,51 @@
+services:
+  minecraft:
+    image: itzg/minecraft-server:latest
+    container_name: minecraft
+    restart: unless-stopped
+    ports:
+      - "25565:25565"
+    environment:
+      EULA: "TRUE"
+      TYPE: "PAPER"
+      VERSION: "LATEST"
+      MEMORY: "3G"
+      USE_AIKAR_FLAGS: "true"
+      MAX_PLAYERS: "5"
+      VIEW_DISTANCE: "8"
+      SIMULATION_DISTANCE: "6"
+      ONLINE_MODE: "TRUE"
+      ENABLE_WHITELIST: "TRUE"
+      ENFORCE_WHITELIST: "TRUE"
+      WHITELIST: "Ruiisuuu,azerX420,Eskodas"
+      OPS: "Ruiisuuu"
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: "${RCON_PASSWORD}"
+      MOTD: "Friends Minecraft Server"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "mc-health"]
+      start_period: 2m
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  backup:
+    image: itzg/mc-backup:latest
+    container_name: minecraft-backup
+    user: "1000:1000"
+    restart: unless-stopped
+    depends_on:
+      minecraft:
+        condition: service_healthy
+    environment:
+      RCON_HOST: "minecraft"
+      RCON_PASSWORD: "${RCON_PASSWORD}"
+      BACKUP_INTERVAL: "24h"
+      INITIAL_DELAY: "2m"
+      PRUNE_BACKUPS_DAYS: "14"
+      PAUSE_IF_NO_PLAYERS: "false"
+    volumes:
+      - ./data:/data:ro
+      - ./backups:/backups

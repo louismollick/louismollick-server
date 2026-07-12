@@ -11,7 +11,7 @@ This directory contains the non-sensitive deployment config for the separate Min
 ## Runtime Notes
 
 - Java Edition server
-- Paper latest stable image via `itzg/minecraft-server`
+- Paper `26.2` via `itzg/minecraft-server`
 - Host port `25565/tcp`
 - Memory cap `3G`
 - Tuned for `5` concurrent players

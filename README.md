@@ -9,12 +9,9 @@ Current services:
 - `https://budget.louismollick.com/` -> Actual Budget
 - `https://music.louismollick.com/` -> Navidrome music server
 - `https://spotify-lyrics-api.louismollick.com/` -> Spotify lyrics API
+- `168.138.74.194:25565` -> Paper Minecraft server
 
-Additional stack config in this repo:
-
-- `minecraft-server/` -> separate Paper Minecraft deployment on `168.138.74.194:25565`
-
-Traefik is the only public entrypoint. It listens on ports `80` and `443`, redirects HTTP to HTTPS, and stores ACME certificate state in `traefik/acme.json`.
+Traefik is the public web entrypoint. It listens on ports `80` and `443`, redirects HTTP to HTTPS, and stores ACME certificate state in `traefik/acme.json`. Minecraft publishes `25565/tcp` directly.
 
 ## Requirements
 
@@ -27,7 +24,7 @@ Before starting:
   - `budget.louismollick.com`
   - `music.louismollick.com`
   - `spotify-lyrics-api.louismollick.com`
-- Ports `80/tcp` and `443/tcp` open in the VPS firewall / cloud security group
+- Ports `80/tcp`, `443/tcp`, and `25565/tcp` open in the VPS firewall / cloud security group
 
 ## Files In This Repo
 
@@ -35,6 +32,9 @@ Before starting:
 - [`/.env-anki.example`](/Users/mollicl/personal/louismollick-server/.env-anki.example): example runtime variables for Anki
 - [`/.env-lyrics.example`](/Users/mollicl/personal/louismollick-server/.env-lyrics.example): example runtime variables for lyrics API
 - [`/.env-navidrome.example`](/Users/mollicl/personal/louismollick-server/.env-navidrome.example): example runtime variables for Navidrome
+- [`/minecraft-server/.env.example`](/Users/mollicl/personal/louismollick-server/minecraft-server/.env.example): example Minecraft RCON secret
+- `/home/ubuntu/minecraft-server/data`: persistent Minecraft server and world data on the VPS
+- `/home/ubuntu/minecraft-server/backups`: daily Minecraft backups on the VPS
 - [`/music`](/Users/mollicl/personal/louismollick-server/music): local music library mounted read-only into Navidrome (create this yourself; it is gitignored)
 - [`/traefik/acme.json`](/Users/mollicl/personal/louismollick-server/traefik/acme.json): runtime ACME state file created locally on the server
 - [`/volumes/anki_data`](/Users/mollicl/personal/louismollick-server/volumes/anki_data): persistent Anki data
@@ -51,6 +51,7 @@ Copy the committed examples into real runtime files:
 cp .env-anki.example .env-anki
 cp .env-lyrics.example .env-lyrics
 cp .env-navidrome.example .env-navidrome
+cp minecraft-server/.env.example /home/ubuntu/minecraft-server/.env
 ```
 
 Then edit them:
@@ -65,6 +66,8 @@ Then edit them:
   - Set `TZ` to your preferred timezone if you do not want `UTC`
   - Adjust `ND_SCANSCHEDULE` if you want a different rescan interval
   - Adjust `ND_LOGLEVEL` if you want more or less log verbosity
+- In `/home/ubuntu/minecraft-server/.env`:
+  - Set `RCON_PASSWORD` to a long random password
 
 ### 1b. Add your music library for Navidrome
 
@@ -116,9 +119,11 @@ The Compose stack includes:
 - `navidrome`: music server on internal port `4533`, with persistent state in `./volumes/navidrome_data`
   - Mounts `./music` read-only into `/music` so your catalog is available to the server
 - `spotify-lyrics-api`: lyrics service on internal port `8080`
+- `minecraft`: Paper Minecraft server on host port `25565`, with persistent data in `/home/ubuntu/minecraft-server/data`
+- `minecraft-backup`: daily Minecraft backups retained for 14 days in `/home/ubuntu/minecraft-server/backups`
 - `watchtower`: periodically checks for newer images and updates labeled containers
 
-The app containers do not publish host ports directly. Only Traefik binds `80` and `443`.
+The web app containers do not publish host ports directly. Traefik binds `80` and `443`; Minecraft binds `25565` directly.
 
 ## First Boot Verification
 
@@ -208,6 +213,7 @@ docker compose restart anki-desktop
 docker compose restart actual-server
 docker compose restart navidrome
 docker compose restart spotify-lyrics-api
+docker compose restart minecraft
 ```
 
 View logs:
@@ -238,6 +244,7 @@ Make sure these files exist:
 - `.env-anki`
 - `.env-lyrics`
 - `.env-navidrome`
+- `/home/ubuntu/minecraft-server/.env`
 
 The `.example` files are templates only and are not loaded automatically by Compose.
 
@@ -270,5 +277,6 @@ This stack depends on Traefik stripping the `/api` prefix before proxying upstre
 - Persistent Anki data is stored under `./volumes/anki_data`.
 - Persistent Actual Budget data is stored under `./volumes/actual_data`.
 - Persistent Navidrome state is stored under `./volumes/navidrome_data`.
+- Persistent Minecraft data is stored under `/home/ubuntu/minecraft-server/data`; backups are under `/home/ubuntu/minecraft-server/backups`.
 - The music catalog served by Navidrome is read from `./music`.
 - The Traefik dashboard is intentionally not exposed.

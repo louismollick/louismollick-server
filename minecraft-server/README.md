@@ -1,12 +1,17 @@
 # Minecraft Server
 
-This directory contains the non-sensitive deployment config for the separate Minecraft server stack running alongside the main reverse-proxy stack.
+Minecraft is part of the repository's main Docker Compose stack. This directory documents its configuration; runtime data stays outside the Git checkout.
 
 ## Included
 
-- `compose.yml`: Paper server + daily backup sidecar
 - `.env.example`: placeholder for the required RCON password
-- `.gitignore`: excludes runtime secrets and persistent world/backup data
+- `.gitignore`: prevents accidental commits if runtime files are temporarily placed here
+
+Runtime files on the VPS:
+
+- `/home/ubuntu/minecraft-server/.env`: RCON secret
+- `/home/ubuntu/minecraft-server/data`: persistent server and world data
+- `/home/ubuntu/minecraft-server/backups`: daily backups
 
 ## Runtime Notes
 
@@ -26,21 +31,25 @@ This directory contains the non-sensitive deployment config for the separate Min
 Create the runtime secret file:
 
 ```bash
-cp .env.example .env
+cp minecraft-server/.env.example /home/ubuntu/minecraft-server/.env
 ```
 
-Set a strong `RCON_PASSWORD`, then start:
+Set a strong `RCON_PASSWORD`, then start Minecraft and its backup service from the repository root:
 
 ```bash
-docker compose -f minecraft-server/compose.yml up -d
+docker compose up -d minecraft minecraft-backup
 ```
 
-If you deploy from inside this directory instead:
+The Compose paths default to `/home/ubuntu/minecraft-server`. Set `MINECRAFT_SERVER_DIR` when running Compose to use another location.
 
-```bash
-cd minecraft-server
-docker compose up -d
-```
+## One-Time Migration From The Separate Stack
+
+Before replacing containers from the old `minecraft-server` Compose project:
+
+1. Flush the live world and create a verified backup.
+2. Stop and remove only the old `minecraft` and `minecraft-backup` containers. Do not delete bind-mounted directories or use `down --volumes`.
+3. Start `minecraft` and `minecraft-backup` from the repository root.
+4. Verify both containers use `/home/ubuntu/minecraft-server/data` and `/home/ubuntu/minecraft-server/backups`.
 
 ## Required Manual Infra
 

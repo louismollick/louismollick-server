@@ -167,6 +167,8 @@ services:
   watchtower:
     image: containrrr/watchtower:latest
     restart: unless-stopped
+    environment:
+      DOCKER_API_VERSION: "1.44"
     command:
       - --interval
       - "300"

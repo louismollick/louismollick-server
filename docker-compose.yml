@@ -112,20 +112,6 @@ services:
       - traefik.http.services.actual-server.loadbalancer.server.port=5006
       - com.centurylinklabs.watchtower.enable=true
 
-  actual-ai:
-    image: docker.io/sakowicz/actual-ai:2.3.0@sha256:f3ba0b94dccee8f52ff77f417dc0c9f6f9a3dfce145dd05e9cf99f9cc07397de
-    restart: unless-stopped
-    depends_on:
-      - actual-server
-    env_file:
-      - .env-actual-ai
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
-    networks:
-      - actual-internal
-      - default
-
   watchtower:
     image: containrrr/watchtower:latest
     restart: unless-stopped

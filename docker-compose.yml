@@ -102,7 +102,6 @@ services:
       - ./volumes/actual_data:/data
     networks:
       - traefik-public
-      - actual-internal
     labels:
       - traefik.enable=true
       - "traefik.http.routers.actual-server.rule=Host(`budget.louismollick.com`)"
@@ -127,5 +126,3 @@ services:
 networks:
   traefik-public:
     name: traefik-public
-  actual-internal:
-    internal: true

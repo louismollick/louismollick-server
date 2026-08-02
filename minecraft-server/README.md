@@ -18,7 +18,7 @@ Runtime files on the VPS:
 - Java Edition server
 - Paper `26.2` via `itzg/minecraft-server`
 - Host port `25565/tcp`
-- Memory cap `3G`
+- Memory allocation `5G`
 - Tuned for `5` concurrent players
 - Online mode enabled
 - Whitelist enabled

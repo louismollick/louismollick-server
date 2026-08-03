@@ -38,6 +38,19 @@ services:
       - ./volumes/anki_data:/config
     networks:
       - traefik-public
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS --max-time 5 -H 'Content-Type: application/json'
+          -d '{"action":"version","version":6}' http://127.0.0.1:8765
+          | grep -qE '"error"[[:space:]]*:[[:space:]]*null'
+          && gui_status="$$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000)"
+          && [ "$$gui_status" -ge 200 ] && [ "$$gui_status" -lt 500 ]
+      start_period: 5m
+      interval: 30s
+      timeout: 10s
+      retries: 3
     labels:
       - traefik.enable=true
       - "traefik.http.routers.anki-ui.rule=Host(`anki.louismollick.com`)"
@@ -74,10 +87,30 @@ services:
       - /bin/sh
       - -c
       - |
-        echo '0 10,22 * * * docker ps -q --filter label=com.louismollick.anki-cleanup=true | xargs -r docker restart >> /proc/1/fd/1 2>&1' > /etc/crontabs/root
-        exec crond -f -l 2
-    tmpfs:
-      - /etc/crontabs
+        while true; do
+          target="$$(docker ps -q --filter label=com.louismollick.anki-cleanup=true)"
+          if [ -z "$$target" ]; then
+            sleep 60
+            continue
+          fi
+
+          health="$$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$$target")"
+          memory="$$(docker stats --no-stream --format '{{.MemPerc}}' "$$target" | tr -d '%')"
+          reason=""
+
+          if [ "$$health" = "unhealthy" ]; then
+            reason="Anki API unhealthy"
+          elif awk -v percent="$$memory" 'BEGIN { exit !(percent >= 75) }'; then
+            reason="memory at $${memory}%"
+          fi
+
+          if [ -n "$$reason" ]; then
+            echo "$$(date -u +'%Y-%m-%dT%H:%M:%SZ') restarting Anki: $$reason"
+            docker restart "$$target"
+          fi
+
+          sleep 60
+        done
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 

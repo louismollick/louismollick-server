@@ -115,7 +115,7 @@ The Compose stack includes:
 
 - `traefik`: reverse proxy, HTTPS, certificate management
 - `anki-desktop`: Anki desktop image with KasmVNC on internal port `3000` and AnkiConnect on internal port `8765`
-- `anki-cleanup`: restarts Anki at 10:00 and 22:00 UTC to contain its QtWebEngine memory leak
+- `anki-cleanup`: restarts Anki when its API is unhealthy or memory reaches 75% of its limit
 - `actual-server`: Actual Budget on internal port `5006`, with persistent state in `./volumes/actual_data`
 - `navidrome`: music server on internal port `4533`, with persistent state in `./volumes/navidrome_data`
   - Mounts `./music` read-only into `/music` so your catalog is available to the server
@@ -217,16 +217,18 @@ docker compose restart spotify-lyrics-api
 docker compose restart minecraft
 ```
 
-Anki is limited to 2 GiB total RAM and swap. Its cleanup service restarts it
-every 12 hours, at 10:00 and 22:00 UTC. Check the scheduler with:
+Anki is limited to 2 GiB total RAM and swap. Its cleanup service checks the
+AnkiConnect API and web UI every minute, restarting Anki when either is
+unhealthy or memory reaches 75% of the limit. Check the watchdog with:
 
 ```bash
 docker compose logs anki-cleanup
 ```
 
-The scheduler needs the Docker socket to restart only the container carrying its
-dedicated `com.louismollick.anki-cleanup=true` label. It has no network, a
-read-only root filesystem, dropped capabilities, and a pinned image digest.
+The watchdog selects only the container carrying its dedicated
+`com.louismollick.anki-cleanup=true` label. It has no network, a read-only root
+filesystem, dropped capabilities, and a pinned image digest. Its writable Docker
+socket is nevertheless root-equivalent access to the VPS Docker daemon.
 
 View logs:
 

@@ -119,6 +119,7 @@ The Compose stack includes:
 - `actual-server`: Actual Budget on internal port `5006`, with persistent state in `./volumes/actual_data`
 - `navidrome`: music server on internal port `4533`, with persistent state in `./volumes/navidrome_data`
   - Mounts `./music` read-only into `/music` so your catalog is available to the server
+  - Purges missing database entries after full scans so moved or deleted files do not remain as ghost tracks
 - `spotify-lyrics-api`: lyrics service on internal port `8080`
 - `minecraft`: Paper Minecraft server on host port `25565`, with persistent data in `/home/ubuntu/minecraft-server/data`
 - `minecraft-backup`: daily Minecraft backups retained for 14 days in `/home/ubuntu/minecraft-server/backups`

@@ -139,6 +139,7 @@ services:
     environment:
       ND_DATAFOLDER: /data
       ND_MUSICFOLDER: /music
+      ND_SCANNER_PURGEMISSING: full
     volumes:
       - ./volumes/navidrome_data:/data
       - ./music:/music:ro

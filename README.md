@@ -129,8 +129,7 @@ The Compose stack includes:
 - `spotify-lyrics-api`: lyrics service on internal port `8080`
 - `minecraft`: Paper Minecraft server on host port `25565`, with persistent data in `/home/ubuntu/minecraft-server/data`
 - `minecraft-backup`: daily Minecraft backups retained for 14 days in `/home/ubuntu/minecraft-server/backups`
-- `admin-terminal`: loopback-only ttyd terminal that opens a host login shell as `ubuntu`
-- `cloudflared`: outbound Cloudflare Tunnel connector for the admin terminal
+- `cloudflared`: outbound Cloudflare Tunnel connector for the host `ttyd` admin terminal
 - `watchtower`: periodically checks for newer images and updates labeled containers
 
 The web app containers do not publish host ports directly. Traefik binds `80` and `443`; Minecraft binds `25565` directly. The admin terminal listens only on host loopback at `127.0.0.1:7681` and must be reached through Cloudflare Tunnel.
@@ -303,4 +302,4 @@ This stack depends on Traefik stripping the `/api` prefix before proxying upstre
 - Persistent Minecraft data is stored under `/home/ubuntu/minecraft-server/data`; backups are under `/home/ubuntu/minecraft-server/backups`.
 - The music catalog served by Navidrome is read from `./music`.
 - The Traefik dashboard is intentionally not exposed.
-- The admin terminal is intentionally privileged so it can enter the host namespaces. Keep `127.0.0.1:7681` private and protect `terminal.louismollick.com` with Cloudflare Access before publishing the tunnel route.
+- The admin terminal runs as the host `ubuntu` user and listens only on `127.0.0.1:7681`. Keep that port private and protect `terminal.louismollick.com` with Cloudflare Access before publishing the tunnel route.

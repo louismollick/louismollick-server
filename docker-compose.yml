@@ -224,6 +224,49 @@ services:
       - ${MINECRAFT_SERVER_DIR:-/home/ubuntu/minecraft-server}/data:/data:ro
       - ${MINECRAFT_SERVER_DIR:-/home/ubuntu/minecraft-server}/backups:/backups
 
+  admin-terminal:
+    build:
+      context: ./admin-terminal
+    restart: unless-stopped
+    privileged: true
+    pid: host
+    network_mode: host
+    command:
+      - ttyd
+      - -W
+      - -O
+      - -m
+      - "1"
+      - -i
+      - 127.0.0.1
+      - -p
+      - "7681"
+      - nsenter
+      - --target
+      - "1"
+      - --mount
+      - --uts
+      - --ipc
+      - --net
+      - --pid
+      - --
+      - /usr/bin/su
+      - -
+      - ubuntu
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env-cloudflared
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+    depends_on:
+      - admin-terminal
+
   watchtower:
     image: containrrr/watchtower:latest
     restart: unless-stopped

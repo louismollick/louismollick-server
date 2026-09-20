@@ -8,6 +8,7 @@ Current services:
 - `https://anki.louismollick.com/api` -> AnkiConnect API
 - `https://budget.louismollick.com/` -> Actual Budget
 - `https://music.louismollick.com/` -> Navidrome music server
+- `https://terminal.louismollick.com/` -> VPS admin terminal through Cloudflare Access and Tunnel
 - `https://spotify-lyrics-api.louismollick.com/` -> Spotify lyrics API
 - `168.138.74.194:25565` -> Paper Minecraft server
 
@@ -32,6 +33,8 @@ Before starting:
 - [`/.env-anki.example`](/Users/mollicl/personal/louismollick-server/.env-anki.example): example runtime variables for Anki
 - [`/.env-lyrics.example`](/Users/mollicl/personal/louismollick-server/.env-lyrics.example): example runtime variables for lyrics API
 - [`/.env-navidrome.example`](/Users/mollicl/personal/louismollick-server/.env-navidrome.example): example runtime variables for Navidrome
+- [`.env-cloudflared.example`](./.env-cloudflared.example): example Cloudflare Tunnel token file
+- [`admin-terminal/README.md`](./admin-terminal/README.md): admin terminal and Cloudflare Tunnel setup notes
 - [`/minecraft-server/.env.example`](/Users/mollicl/personal/louismollick-server/minecraft-server/.env.example): example Minecraft RCON secret
 - `/home/ubuntu/minecraft-server/data`: persistent Minecraft server and world data on the VPS
 - `/home/ubuntu/minecraft-server/backups`: daily Minecraft backups on the VPS
@@ -51,6 +54,7 @@ Copy the committed examples into real runtime files:
 cp .env-anki.example .env-anki
 cp .env-lyrics.example .env-lyrics
 cp .env-navidrome.example .env-navidrome
+cp .env-cloudflared.example .env-cloudflared
 cp minecraft-server/.env.example /home/ubuntu/minecraft-server/.env
 ```
 
@@ -66,6 +70,8 @@ Then edit them:
   - Set `TZ` to your preferred timezone if you do not want `UTC`
   - Adjust `ND_SCANSCHEDULE` if you want a different rescan interval
   - Adjust `ND_LOGLEVEL` if you want more or less log verbosity
+- In `.env-cloudflared`:
+  - Set `TUNNEL_TOKEN` to the token for the remotely-managed Cloudflare Tunnel that publishes the admin terminal
 - In `/home/ubuntu/minecraft-server/.env`:
   - Set `RCON_PASSWORD` to a long random password
 
@@ -80,7 +86,7 @@ cp -R /path/to/your/music/. music/
 
 The `navidrome` service mounts this directory read-only into the container at `/music`.
 
-Runtime files `.env-anki`, `.env-lyrics`, and `.env-navidrome` are ignored by git.
+Runtime files `.env-anki`, `.env-lyrics`, `.env-navidrome`, and `.env-cloudflared` are ignored by git.
 The `music/` directory and the `volumes/actual_data/` and `volumes/navidrome_data/` directories are also ignored by git.
 
 ### 2. Create the ACME storage file
@@ -123,9 +129,10 @@ The Compose stack includes:
 - `spotify-lyrics-api`: lyrics service on internal port `8080`
 - `minecraft`: Paper Minecraft server on host port `25565`, with persistent data in `/home/ubuntu/minecraft-server/data`
 - `minecraft-backup`: daily Minecraft backups retained for 14 days in `/home/ubuntu/minecraft-server/backups`
+- `cloudflared`: outbound Cloudflare Tunnel connector for the host `ttyd` admin terminal
 - `watchtower`: periodically checks for newer images and updates labeled containers
 
-The web app containers do not publish host ports directly. Traefik binds `80` and `443`; Minecraft binds `25565` directly.
+The web app containers do not publish host ports directly. Traefik binds `80` and `443`; Minecraft binds `25565` directly. The admin terminal listens only on host loopback at `127.0.0.1:7681` and must be reached through Cloudflare Tunnel.
 
 ## First Boot Verification
 
@@ -295,3 +302,4 @@ This stack depends on Traefik stripping the `/api` prefix before proxying upstre
 - Persistent Minecraft data is stored under `/home/ubuntu/minecraft-server/data`; backups are under `/home/ubuntu/minecraft-server/backups`.
 - The music catalog served by Navidrome is read from `./music`.
 - The Traefik dashboard is intentionally not exposed.
+- The admin terminal runs as the host `ubuntu` user and listens only on `127.0.0.1:7681`. Keep that port private and protect `terminal.louismollick.com` with Cloudflare Access before publishing the tunnel route.

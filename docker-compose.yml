@@ -224,6 +224,16 @@ services:
       - ${MINECRAFT_SERVER_DIR:-/home/ubuntu/minecraft-server}/data:/data:ro
       - ${MINECRAFT_SERVER_DIR:-/home/ubuntu/minecraft-server}/backups:/backups
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env-cloudflared
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
   watchtower:
     image: containrrr/watchtower:latest
     restart: unless-stopped

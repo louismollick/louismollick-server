@@ -2,6 +2,7 @@
 .env-anki
 .env-lyrics
 .env-navidrome
+.env-cloudflared
 traefik/acme.json
 docker/
 music/

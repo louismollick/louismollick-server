@@ -1,0 +1,17 @@
+[Unit]
+Description=Loopback-only browser admin terminal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+Environment=HOME=/home/ubuntu
+WorkingDirectory=/home/ubuntu
+ExecStart=/usr/bin/ttyd -W -O -m 1 -i 127.0.0.1 -p 7681 /bin/bash -l
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

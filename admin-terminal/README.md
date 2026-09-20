@@ -1,16 +1,36 @@
 # Admin terminal
 
-This service exposes a browser terminal for administering the VPS through Cloudflare Tunnel and Cloudflare Access.
+This exposes a browser terminal for administering the VPS through Cloudflare Tunnel and Cloudflare Access.
 
-The terminal is intentionally powerful. The container is privileged, joins the host PID and network namespaces, and uses `nsenter` to open a login shell as the host's `ubuntu` user. Treat access to the terminal as equivalent to SSH access to the VPS.
-
-The terminal itself listens only on `127.0.0.1:7681`. Do not publish port 7681 in Docker, OCI security lists, UFW, or any other firewall. The intended path is:
+`ttyd` runs directly on the VPS as the existing `ubuntu` user and listens only on `127.0.0.1:7681`. Cloudflare Tunnel is the only intended path to it:
 
 ```
-browser -> Cloudflare Access -> Cloudflare Tunnel -> 127.0.0.1:7681 -> ttyd -> host shell
+browser -> Cloudflare Access -> Cloudflare Tunnel -> 127.0.0.1:7681 -> ttyd -> ubuntu shell
 ```
 
-## Runtime configuration
+Do not publish port 7681 in Docker, OCI security lists, UFW, or any other firewall.
+
+## Install ttyd
+
+On the VPS:
+
+```bash
+sudo apt update
+sudo apt install -y ttyd
+sudo install -m 0644 admin-terminal/ttyd-admin.service /etc/systemd/system/ttyd-admin.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now ttyd-admin
+```
+
+Verify it is listening only on loopback:
+
+```bash
+systemctl status ttyd-admin --no-pager
+ss -ltnp | grep 7681
+curl -I http://127.0.0.1:7681
+```
+
+## Configure Cloudflare Tunnel
 
 Create the tunnel token file:
 
@@ -18,28 +38,13 @@ Create the tunnel token file:
 cp .env-cloudflared.example .env-cloudflared
 ```
 
-Set `TUNNEL_TOKEN` to the token for a remotely-managed Cloudflare Tunnel.
-
-In Cloudflare, publish a hostname such as `terminal.louismollick.com` and point it to:
-
-```
-http://localhost:7681
-```
-
-Create a Cloudflare Access self-hosted application for the same hostname before making the route available.
-
-## Start
+Set `TUNNEL_TOKEN` to the token for a remotely-managed Cloudflare Tunnel, then start the connector:
 
 ```bash
-docker compose up -d --build admin-terminal cloudflared
+docker compose up -d cloudflared
+docker compose logs --tail=100 cloudflared
 ```
 
-Verify locally on the VPS:
+In Cloudflare, publish a hostname such as `terminal.louismollick.com` and point it to `http://localhost:7681`. Create a Cloudflare Access self-hosted application for the same hostname before making the route available.
 
-```bash
-curl -I http://127.0.0.1:7681
-docker compose ps admin-terminal cloudflared
-docker compose logs --tail=100 admin-terminal cloudflared
-```
-
-No inbound OCI firewall rule is required for the tunnel. `cloudflared` makes the connection outbound to Cloudflare.
+No inbound OCI firewall rule is required for the tunnel. `cloudflared` connects outbound to Cloudflare.

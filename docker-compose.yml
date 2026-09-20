@@ -251,7 +251,7 @@ services:
       - --pid
       - --
       - /usr/bin/su
-      - -
+      - "-"
       - ubuntu
 
   cloudflared:

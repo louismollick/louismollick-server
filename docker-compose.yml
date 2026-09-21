@@ -140,6 +140,8 @@ services:
       ND_DATAFOLDER: /data
       ND_MUSICFOLDER: /music
       ND_SCANNER_PURGEMISSING: full
+      ND_TRANSCODING_MAXCONCURRENT: 2
+      ND_TRANSCODING_MAXCONCURRENTPERUSER: 2
     volumes:
       - ./volumes/navidrome_data:/data
       - ./music:/music:ro

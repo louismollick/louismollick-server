@@ -2,6 +2,7 @@
 .env-anki
 .env-lyrics
 .env-navidrome
+.env-shigoto
 .env-cloudflared
 traefik/acme.json
 docker/
@@ -9,3 +10,4 @@ music/
 volumes/anki_data/
 volumes/actual_data/
 volumes/navidrome_data/
+volumes/shigoto_data/

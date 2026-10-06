@@ -11,6 +11,7 @@ Current services:
 - `https://terminal.louismollick.com/` -> VPS admin terminal through Cloudflare Access and Tunnel
 - `https://spotify-lyrics-api.louismollick.com/` -> Spotify lyrics API
 - `168.138.74.194:25565` -> Paper Minecraft server
+- `shigoto` -> job aggregator that syncs to Google Sheets every 6h (no web UI)
 
 Traefik is the public web entrypoint. It listens on ports `80` and `443`, redirects HTTP to HTTPS, and stores ACME certificate state in `traefik/acme.json`. Minecraft publishes `25565/tcp` directly.
 
@@ -42,6 +43,8 @@ Before starting:
 - [`/traefik/acme.json`](/Users/mollicl/personal/louismollick-server/traefik/acme.json): runtime ACME state file created locally on the server
 - [`/volumes/anki_data`](/Users/mollicl/personal/louismollick-server/volumes/anki_data): persistent Anki data
 - [`/volumes/actual_data`](/Users/mollicl/personal/louismollick-server/volumes/actual_data): persistent Actual Budget data (`/data` in the container)
+- [`.env-shigoto.example`](./.env-shigoto.example): example runtime variables for shigoto
+- `volumes/shigoto_data`: shigoto SQLite history (`shigoto.db`) and the Google service account key (`google.json`)
 - [`/volumes/navidrome_data`](/Users/mollicl/personal/louismollick-server/volumes/navidrome_data): persistent Navidrome state (database, cache, artwork)
 
 ## Getting Started
@@ -86,7 +89,7 @@ cp -R /path/to/your/music/. music/
 
 The `navidrome` service mounts this directory read-only into the container at `/music`.
 
-Runtime files `.env-anki`, `.env-lyrics`, `.env-navidrome`, and `.env-cloudflared` are ignored by git.
+Runtime files `.env-anki`, `.env-lyrics`, `.env-navidrome`, `.env-cloudflared`, and `.env-shigoto` are ignored by git.
 The `music/` directory and the `volumes/actual_data/` and `volumes/navidrome_data/` directories are also ignored by git.
 
 ### 2. Create the ACME storage file
@@ -127,6 +130,7 @@ The Compose stack includes:
   - Mounts `./music` read-only into `/music` so your catalog is available to the server
   - Purges missing database entries after full scans so moved or deleted files do not remain as ghost tracks
 - `spotify-lyrics-api`: lyrics service on internal port `8080`
+- `shigoto`: [job aggregator](https://github.com/louismollick/shigoto); scrapes job boards every 6h into `./volumes/shigoto_data/shigoto.db` and syncs the delta to the `Shigoto` tab of a Google Sheet. Needs `.env-shigoto` and the service account key at `./volumes/shigoto_data/google.json`
 - `minecraft`: Paper Minecraft server on host port `25565`, with persistent data in `/home/ubuntu/minecraft-server/data`
 - `minecraft-backup`: daily Minecraft backups retained for 14 days in `/home/ubuntu/minecraft-server/backups`
 - `cloudflared`: outbound Cloudflare Tunnel connector for the host `ttyd` admin terminal

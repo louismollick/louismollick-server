@@ -131,6 +131,19 @@ services:
       - traefik.http.services.lyrics-api.loadbalancer.server.port=8080
       - com.centurylinklabs.watchtower.enable=true
 
+  shigoto:
+    image: ghcr.io/louismollick/shigoto:main
+    restart: unless-stopped
+    mem_limit: 1g
+    env_file:
+      - .env-shigoto
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /data/google.json
+    volumes:
+      - ./volumes/shigoto_data:/data
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
   navidrome:
     image: deluan/navidrome:latest
     restart: unless-stopped

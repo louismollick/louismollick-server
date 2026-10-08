@@ -3,6 +3,7 @@
 .env-lyrics
 .env-navidrome
 .env-shigoto
+.env-kashi
 .env-cloudflared
 traefik/acme.json
 docker/

@@ -8,6 +8,7 @@ Current services:
 - `https://anki.louismollick.com/api` -> AnkiConnect API
 - `https://budget.louismollick.com/` -> Actual Budget
 - `https://music.louismollick.com/` -> Navidrome music server
+- `https://kashi.louismollick.com/` -> Kashi-Koi song analysis server
 - `https://terminal.louismollick.com/` -> VPS admin terminal through Cloudflare Access and Tunnel
 - `https://spotify-lyrics-api.louismollick.com/` -> Spotify lyrics API
 - `168.138.74.194:25565` -> Paper Minecraft server
@@ -25,6 +26,7 @@ Before starting:
   - `anki.louismollick.com`
   - `budget.louismollick.com`
   - `music.louismollick.com`
+  - `kashi.louismollick.com`
   - `spotify-lyrics-api.louismollick.com`
 - Ports `80/tcp`, `443/tcp`, and `25565/tcp` open in the VPS firewall / cloud security group
 
@@ -44,6 +46,8 @@ Before starting:
 - [`/volumes/anki_data`](/Users/mollicl/personal/louismollick-server/volumes/anki_data): persistent Anki data
 - [`/volumes/actual_data`](/Users/mollicl/personal/louismollick-server/volumes/actual_data): persistent Actual Budget data (`/data` in the container)
 - [`.env-shigoto.example`](./.env-shigoto.example): example runtime variables for shigoto
+- [`.env-kashi.example`](./.env-kashi.example): example runtime variables for the Kashi-Koi server
+- `kashi_data` Docker volume: Kashi-Koi analyses (SQLite) and its Codex login
 - `volumes/shigoto_data`: shigoto SQLite history (`shigoto.db`) and the Google service account key (`google.json`)
 - [`/volumes/navidrome_data`](/Users/mollicl/personal/louismollick-server/volumes/navidrome_data): persistent Navidrome state (database, cache, artwork)
 
@@ -58,6 +62,7 @@ cp .env-anki.example .env-anki
 cp .env-lyrics.example .env-lyrics
 cp .env-navidrome.example .env-navidrome
 cp .env-cloudflared.example .env-cloudflared
+cp .env-kashi.example .env-kashi
 cp minecraft-server/.env.example /home/ubuntu/minecraft-server/.env
 ```
 
@@ -75,6 +80,9 @@ Then edit them:
   - Adjust `ND_LOGLEVEL` if you want more or less log verbosity
 - In `.env-cloudflared`:
   - Set `TUNNEL_TOKEN` to the token for the remotely-managed Cloudflare Tunnel that publishes the admin terminal
+- In `.env-kashi`:
+  - Set `KASHI_ADMIN_TOKEN` to a long random secret (`openssl rand -hex 32`); enter the same value as the admin token in the app's Settings
+  - Set `NAVIDROME_USER` and `NAVIDROME_PASSWORD` to a Navidrome account, used only by the backfill
 - In `/home/ubuntu/minecraft-server/.env`:
   - Set `RCON_PASSWORD` to a long random password
 
@@ -89,7 +97,7 @@ cp -R /path/to/your/music/. music/
 
 The `navidrome` service mounts this directory read-only into the container at `/music`.
 
-Runtime files `.env-anki`, `.env-lyrics`, `.env-navidrome`, `.env-cloudflared`, and `.env-shigoto` are ignored by git.
+Runtime files `.env-anki`, `.env-lyrics`, `.env-navidrome`, `.env-cloudflared`, `.env-shigoto`, and `.env-kashi` are ignored by git.
 The `music/` directory and the `volumes/actual_data/` and `volumes/navidrome_data/` directories are also ignored by git.
 
 ### 2. Create the ACME storage file
@@ -104,12 +112,26 @@ touch traefik/acme.json
 chmod 600 traefik/acme.json
 ```
 
-### 3. Start the stack
+### 3. Log the Kashi-Koi server in to Codex
+
+The Kashi-Koi server analyses songs with `codex exec` on your ChatGPT subscription. Log in once; the login is kept in the `kashi_data` volume:
+
+```bash
+docker compose run --rm kashi-server codex login --device-auth
+```
+
+### 4. Start the stack
 
 Bring up all services:
 
 ```bash
 docker compose up -d
+```
+
+To queue an analysis for every synced Japanese song already in Navidrome:
+
+```bash
+docker compose exec kashi-server node --import tsx apps/server/src/backfill.ts
 ```
 
 If you want to inspect the resolved Compose config first:
@@ -130,6 +152,7 @@ The Compose stack includes:
   - Mounts `./music` read-only into `/music` so your catalog is available to the server
   - Purges missing database entries after full scans so moved or deleted files do not remain as ghost tracks
 - `spotify-lyrics-api`: lyrics service on internal port `8080`
+- `kashi-server`: [Kashi-Koi](https://github.com/louismollick/kashi-koi) song analysis API on internal port `8787`, with its database and Codex login in the `kashi_data` volume. Reads lyrics from Navidrome over the internal network for the backfill
 - `shigoto`: [job aggregator](https://github.com/louismollick/shigoto); scrapes job boards every 6h into `./volumes/shigoto_data/shigoto.db` and syncs the delta to the `Shigoto` tab of a Google Sheet. Needs `.env-shigoto` and the service account key at `./volumes/shigoto_data/google.json`
 - `minecraft`: Paper Minecraft server on host port `25565`, with persistent data in `/home/ubuntu/minecraft-server/data`
 - `minecraft-backup`: daily Minecraft backups retained for 14 days in `/home/ubuntu/minecraft-server/backups`
@@ -169,6 +192,7 @@ Open these URLs in a browser:
 - `https://anki.louismollick.com/`
 - `https://budget.louismollick.com/`
 - `https://music.louismollick.com/`
+- `https://kashi.louismollick.com/health`
 - `https://anki.louismollick.com/api`
 - `https://spotify-lyrics-api.louismollick.com/`
 
@@ -178,6 +202,7 @@ Expected behavior:
 - `https://anki.louismollick.com/` loads the Anki KasmVNC page
 - `https://budget.louismollick.com/` loads the Actual Budget UI
 - `https://music.louismollick.com/` loads the Navidrome UI
+- `https://kashi.louismollick.com/health` returns `{"status":"ok"}`
 - `https://anki.louismollick.com/api` reaches AnkiConnect through Traefik
 - `https://spotify-lyrics-api.louismollick.com/` reaches the lyrics API through Traefik
 
@@ -226,6 +251,7 @@ docker compose restart anki-desktop
 docker compose restart actual-server
 docker compose restart navidrome
 docker compose restart spotify-lyrics-api
+docker compose restart kashi-server
 docker compose restart minecraft
 ```
 
@@ -270,6 +296,7 @@ Make sure these files exist:
 - `.env-anki`
 - `.env-lyrics`
 - `.env-navidrome`
+- `.env-kashi`
 - `/home/ubuntu/minecraft-server/.env`
 
 The `.example` files are templates only and are not loaded automatically by Compose.

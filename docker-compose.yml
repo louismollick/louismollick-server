@@ -169,6 +169,28 @@ services:
       - traefik.http.services.navidrome.loadbalancer.server.port=4533
       - com.centurylinklabs.watchtower.enable=true
 
+  kashi-server:
+    # Song analyses for the Kashi-Koi app (github.com/louismollick/kashi-koi, apps/server).
+    # pr-7 is the PR build; switch to :main once the PR is merged.
+    image: ghcr.io/louismollick/kashi-koi-server:pr-7
+    restart: unless-stopped
+    env_file:
+      - .env-kashi
+    environment:
+      NAVIDROME_URL: http://navidrome:4533
+    volumes:
+      - kashi_data:/data
+    networks:
+      - traefik-public
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.kashi.rule=Host(`kashi.louismollick.com`)"
+      - traefik.http.routers.kashi.entrypoints=websecure
+      - traefik.http.routers.kashi.tls=true
+      - traefik.http.routers.kashi.tls.certresolver=le
+      - traefik.http.services.kashi.loadbalancer.server.port=8787
+      - com.centurylinklabs.watchtower.enable=true
+
   actual-server:
     image: docker.io/actualbudget/actual-server:26.3.0@sha256:eb8bc26f53025e07e464594c12d77c52c4b95840c8dadd9b95c4f0c4660f8ad2
     restart: unless-stopped
@@ -266,3 +288,7 @@ services:
 networks:
   traefik-public:
     name: traefik-public
+
+volumes:
+  # Named so Docker gives the image's non-root user ownership of it.
+  kashi_data:

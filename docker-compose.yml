@@ -171,8 +171,8 @@ services:
 
   kashi-server:
     # Song analyses for the Kashi-Koi app (github.com/louismollick/kashi-koi, apps/server).
-    # pr-7 is the PR build; switch to :main once the PR is merged.
-    image: ghcr.io/louismollick/kashi-koi-server:pr-7
+    # pr-8 is the PR build; switch to :main once the PR is merged.
+    image: ghcr.io/louismollick/kashi-koi-server:pr-8
     restart: unless-stopped
     env_file:
       - .env-kashi

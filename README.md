@@ -9,7 +9,6 @@ Current services:
 - `https://budget.louismollick.com/` -> Actual Budget
 - `https://music.louismollick.com/` -> Navidrome music server
 - `https://kashi.louismollick.com/` -> Kashi-Koi song analysis server
-- `https://terminal.louismollick.com/` -> VPS admin terminal through Cloudflare Access and Tunnel
 - `https://spotify-lyrics-api.louismollick.com/` -> Spotify lyrics API
 - `168.138.74.194:25565` -> Paper Minecraft server
 - `shigoto` -> job aggregator that syncs to Google Sheets every 6h (no web UI)
@@ -36,8 +35,6 @@ Before starting:
 - [`/.env-anki.example`](/Users/mollicl/personal/louismollick-server/.env-anki.example): example runtime variables for Anki
 - [`/.env-lyrics.example`](/Users/mollicl/personal/louismollick-server/.env-lyrics.example): example runtime variables for lyrics API
 - [`/.env-navidrome.example`](/Users/mollicl/personal/louismollick-server/.env-navidrome.example): example runtime variables for Navidrome
-- [`.env-cloudflared.example`](./.env-cloudflared.example): example Cloudflare Tunnel token file
-- [`admin-terminal/README.md`](./admin-terminal/README.md): admin terminal and Cloudflare Tunnel setup notes
 - [`/minecraft-server/.env.example`](/Users/mollicl/personal/louismollick-server/minecraft-server/.env.example): example Minecraft RCON secret
 - `/home/ubuntu/minecraft-server/data`: persistent Minecraft server and world data on the VPS
 - `/home/ubuntu/minecraft-server/backups`: daily Minecraft backups on the VPS
@@ -61,7 +58,6 @@ Copy the committed examples into real runtime files:
 cp .env-anki.example .env-anki
 cp .env-lyrics.example .env-lyrics
 cp .env-navidrome.example .env-navidrome
-cp .env-cloudflared.example .env-cloudflared
 cp .env-kashi.example .env-kashi
 cp minecraft-server/.env.example /home/ubuntu/minecraft-server/.env
 ```
@@ -78,8 +74,6 @@ Then edit them:
   - Set `TZ` to your preferred timezone if you do not want `UTC`
   - Adjust `ND_SCANSCHEDULE` if you want a different rescan interval
   - Adjust `ND_LOGLEVEL` if you want more or less log verbosity
-- In `.env-cloudflared`:
-  - Set `TUNNEL_TOKEN` to the token for the remotely-managed Cloudflare Tunnel that publishes the admin terminal
 - In `.env-kashi`:
   - Set `KASHI_ADMIN_TOKEN` to a long random secret (`openssl rand -hex 32`); enter the same value as the admin token in the app's Settings
   - Set `NAVIDROME_USER` and `NAVIDROME_PASSWORD` to a Navidrome account, used only by the backfill
@@ -97,7 +91,7 @@ cp -R /path/to/your/music/. music/
 
 The `navidrome` service mounts this directory read-only into the container at `/music`.
 
-Runtime files `.env-anki`, `.env-lyrics`, `.env-navidrome`, `.env-cloudflared`, `.env-shigoto`, and `.env-kashi` are ignored by git.
+Runtime files `.env-anki`, `.env-lyrics`, `.env-navidrome`, `.env-shigoto`, and `.env-kashi` are ignored by git.
 The `music/` directory and the `volumes/actual_data/` and `volumes/navidrome_data/` directories are also ignored by git.
 
 ### 2. Create the ACME storage file
@@ -156,10 +150,9 @@ The Compose stack includes:
 - `shigoto`: [job aggregator](https://github.com/louismollick/shigoto); scrapes job boards every 6h into `./volumes/shigoto_data/shigoto.db` and syncs the delta to the `Shigoto` tab of a Google Sheet. Needs `.env-shigoto` and the service account key at `./volumes/shigoto_data/google.json`
 - `minecraft`: Paper Minecraft server on host port `25565`, with persistent data in `/home/ubuntu/minecraft-server/data`
 - `minecraft-backup`: daily Minecraft backups retained for 14 days in `/home/ubuntu/minecraft-server/backups`
-- `cloudflared`: outbound Cloudflare Tunnel connector for the host `ttyd` admin terminal
 - `watchtower`: periodically checks for newer images and updates labeled containers
 
-The web app containers do not publish host ports directly. Traefik binds `80` and `443`; Minecraft binds `25565` directly. The admin terminal listens only on host loopback at `127.0.0.1:7681` and must be reached through Cloudflare Tunnel.
+The web app containers do not publish host ports directly. Traefik binds `80` and `443`; Minecraft binds `25565` directly.
 
 ## First Boot Verification
 
@@ -333,4 +326,3 @@ This stack depends on Traefik stripping the `/api` prefix before proxying upstre
 - Persistent Minecraft data is stored under `/home/ubuntu/minecraft-server/data`; backups are under `/home/ubuntu/minecraft-server/backups`.
 - The music catalog served by Navidrome is read from `./music`.
 - The Traefik dashboard is intentionally not exposed.
-- The admin terminal runs as the host `ubuntu` user and listens only on `127.0.0.1:7681`. Keep that port private and protect `terminal.louismollick.com` with Cloudflare Access before publishing the tunnel route.

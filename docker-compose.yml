@@ -255,7 +255,7 @@ services:
       RCON_HOST: "minecraft"
       BACKUP_INTERVAL: "24h"
       INITIAL_DELAY: "2m"
-      PRUNE_BACKUPS_DAYS: "14"
+      PRUNE_BACKUPS_COUNT: "1"
       PAUSE_IF_NO_PLAYERS: "false"
     volumes:
       - ${MINECRAFT_SERVER_DIR:-/home/ubuntu/minecraft-server}/data:/data:ro

@@ -24,7 +24,7 @@ Runtime files on the VPS:
 - Whitelist enabled
 - Operators: `Ruiisuuu`
 - Whitelisted players: `Ruiisuuu`, `azerX420`, `Eskodas`
-- Daily backups retained for `14` days
+- Daily backup, only the latest one is kept
 
 ## Deploy
 

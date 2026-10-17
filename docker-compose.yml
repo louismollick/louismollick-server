@@ -194,7 +194,7 @@ services:
   # Sure (github.com/we-promise/sure) personal finance app. The worker runs
   # SimpleFIN bank syncs against CIBC Ya Later on the Mac over Tailscale.
   sure-web:
-    image: ghcr.io/we-promise/sure:0.7.5-hotfix.2@sha256:aa46be2d8e3f8b2182261dc05933a64b4a12543dd5f44ad12f08868caac1f997
+    image: ghcr.io/we-promise/sure:0.7.6-alpha.7@sha256:5104d53b5ea184d60f7b895dbcbf766d3af7df390ea42f150b9380726d1dfbc6
     restart: unless-stopped
     env_file:
       - .env-sure
@@ -233,7 +233,7 @@ services:
       - traefik.http.services.sure.loadbalancer.server.port=3000
 
   sure-worker:
-    image: ghcr.io/we-promise/sure:0.7.5-hotfix.2@sha256:aa46be2d8e3f8b2182261dc05933a64b4a12543dd5f44ad12f08868caac1f997
+    image: ghcr.io/we-promise/sure:0.7.6-alpha.7@sha256:5104d53b5ea184d60f7b895dbcbf766d3af7df390ea42f150b9380726d1dfbc6
     restart: unless-stopped
     command: bundle exec sidekiq
     env_file:

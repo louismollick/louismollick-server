@@ -6,7 +6,7 @@ Current services:
 
 - `https://anki.louismollick.com/` -> Anki desktop via KasmVNC
 - `https://anki.louismollick.com/api` -> AnkiConnect API
-- `https://budget.louismollick.com/` -> Actual Budget
+- `https://budget.louismollick.com/` -> Sure personal finance app
 - `https://music.louismollick.com/` -> Navidrome music server
 - `https://kashi.louismollick.com/` -> Kashi-Koi song analysis server
 - `https://spotify-lyrics-api.louismollick.com/` -> Spotify lyrics API
@@ -28,6 +28,7 @@ Before starting:
   - `kashi.louismollick.com`
   - `spotify-lyrics-api.louismollick.com`
 - Ports `80/tcp`, `443/tcp`, and `25565/tcp` open in the VPS firewall / cloud security group
+- Tailscale installed on the VPS host, for Sure's bank sync with CIBC Ya Later on the Mac (see [Tailscale](#tailscale))
 
 ## Files In This Repo
 
@@ -41,7 +42,9 @@ Before starting:
 - [`/music`](/Users/mollicl/personal/louismollick-server/music): local music library mounted read-only into Navidrome (create this yourself; it is gitignored)
 - [`/traefik/acme.json`](/Users/mollicl/personal/louismollick-server/traefik/acme.json): runtime ACME state file created locally on the server
 - [`/volumes/anki_data`](/Users/mollicl/personal/louismollick-server/volumes/anki_data): persistent Anki data
-- [`/volumes/actual_data`](/Users/mollicl/personal/louismollick-server/volumes/actual_data): persistent Actual Budget data (`/data` in the container)
+- [`.env-sure.example`](./.env-sure.example): example secrets for Sure
+- `volumes/sure_postgres`: Sure's Postgres database
+- `sure_storage` and `sure_redis` Docker volumes: Sure uploads and Sidekiq queue state
 - [`.env-shigoto.example`](./.env-shigoto.example): example runtime variables for shigoto
 - [`.env-kashi.example`](./.env-kashi.example): example runtime variables for the Kashi-Koi server
 - `kashi_data` Docker volume: Kashi-Koi analyses (SQLite) and its Codex login
@@ -59,6 +62,7 @@ cp .env-anki.example .env-anki
 cp .env-lyrics.example .env-lyrics
 cp .env-navidrome.example .env-navidrome
 cp .env-kashi.example .env-kashi
+cp .env-sure.example .env-sure
 cp minecraft-server/.env.example /home/ubuntu/minecraft-server/.env
 ```
 
@@ -77,6 +81,9 @@ Then edit them:
 - In `.env-kashi`:
   - Set `KASHI_ADMIN_TOKEN` to a long random secret (`openssl rand -hex 32`); enter the same value as the admin token in the app's Settings
   - Set `NAVIDROME_USER` and `NAVIDROME_PASSWORD` to a Navidrome account, used only by the backfill
+- In `.env-sure`:
+  - Set `SECRET_KEY_BASE` with `openssl rand -hex 64`
+  - Set `POSTGRES_PASSWORD` with `openssl rand -hex 32`
 - In `/home/ubuntu/minecraft-server/.env`:
   - Set `RCON_PASSWORD` to a long random password
 
@@ -91,8 +98,8 @@ cp -R /path/to/your/music/. music/
 
 The `navidrome` service mounts this directory read-only into the container at `/music`.
 
-Runtime files `.env-anki`, `.env-lyrics`, `.env-navidrome`, `.env-shigoto`, and `.env-kashi` are ignored by git.
-The `music/` directory and the `volumes/actual_data/` and `volumes/navidrome_data/` directories are also ignored by git.
+Runtime files `.env-anki`, `.env-lyrics`, `.env-navidrome`, `.env-shigoto`, `.env-kashi`, and `.env-sure` are ignored by git.
+The `music/` directory and the `volumes/sure_postgres/` and `volumes/navidrome_data/` directories are also ignored by git.
 
 ### 2. Create the ACME storage file
 
@@ -134,6 +141,32 @@ If you want to inspect the resolved Compose config first:
 docker compose config
 ```
 
+### 5. Set up Sure
+
+Open `https://budget.louismollick.com/` and register. The first account is the instance admin. Then, in **Settings > Self-Hosting > Onboarding**, choose **Closed** so nobody else can register.
+
+To connect CIBC, generate a client token in CIBC Ya Later on the Mac and paste it into Sure's SimpleFIN connection. Sure's image is pinned by digest, so Watchtower does not update it. To upgrade, change the tag and digest of `sure-web` and `sure-worker` together.
+
+### Tailscale
+
+Sure's worker reaches the Mac at `https://<mac>.<tailnet>.ts.net/simplefin`. Install Tailscale on the VPS host, not in a container, so containers reach the tailnet through the host's routes:
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+tailscale ip -4
+```
+
+In the Tailscale admin console, disable key expiry for the VPS so it stays connected. Use the printed IP as `budget-vps` in CIBC Ya Later's tailnet policy, which allows the VPS to reach only the Mac's port `443`.
+
+The Sure containers use Tailscale's MagicDNS (`100.100.100.100`) to resolve the Mac's hostname. Check it from inside the stack:
+
+```bash
+docker compose exec sure-worker curl -fsS https://<mac>.<tailnet>.ts.net/simplefin/info
+```
+
+It should print `{"versions":["1.0"]}`.
+
 ## What Starts
 
 The Compose stack includes:
@@ -141,7 +174,7 @@ The Compose stack includes:
 - `traefik`: reverse proxy, HTTPS, certificate management
 - `anki-desktop`: Anki desktop image with KasmVNC on internal port `3000` and AnkiConnect on internal port `8765`
 - `anki-cleanup`: restarts Anki when its API is unhealthy or memory reaches 75% of its limit
-- `actual-server`: Actual Budget on internal port `5006`, with persistent state in `./volumes/actual_data`
+- `sure-web`, `sure-worker`, `sure-db`, `sure-redis`: [Sure](https://github.com/we-promise/sure) on internal port `3000`, with a Sidekiq worker, Postgres in `./volumes/sure_postgres`, and Redis. Only `sure-web` joins the Traefik network
 - `navidrome`: music server on internal port `4533`, with persistent state in `./volumes/navidrome_data`
   - Mounts `./music` read-only into `/music` so your catalog is available to the server
   - Purges missing database entries after full scans so moved or deleted files do not remain as ghost tracks
@@ -193,7 +226,7 @@ Expected behavior:
 
 - `http://` requests redirect to `https://`
 - `https://anki.louismollick.com/` loads the Anki KasmVNC page
-- `https://budget.louismollick.com/` loads the Actual Budget UI
+- `https://budget.louismollick.com/` loads the Sure sign-in page
 - `https://music.louismollick.com/` loads the Navidrome UI
 - `https://kashi.louismollick.com/health` returns `{"status":"ok"}`
 - `https://anki.louismollick.com/api` reaches AnkiConnect through Traefik
@@ -241,7 +274,7 @@ Restart one service:
 ```bash
 docker compose restart traefik
 docker compose restart anki-desktop
-docker compose restart actual-server
+docker compose restart sure-web sure-worker
 docker compose restart navidrome
 docker compose restart spotify-lyrics-api
 docker compose restart kashi-server
@@ -290,6 +323,7 @@ Make sure these files exist:
 - `.env-lyrics`
 - `.env-navidrome`
 - `.env-kashi`
+- `.env-sure`
 - `/home/ubuntu/minecraft-server/.env`
 
 The `.example` files are templates only and are not loaded automatically by Compose.
@@ -321,7 +355,7 @@ This stack depends on Traefik stripping the `/api` prefix before proxying upstre
 
 - `traefik/acme.json` contains sensitive certificate/account state. Keep it private and do not hand-edit it while Traefik is running.
 - Persistent Anki data is stored under `./volumes/anki_data`.
-- Persistent Actual Budget data is stored under `./volumes/actual_data`.
+- Sure's database is stored under `./volumes/sure_postgres`.
 - Persistent Navidrome state is stored under `./volumes/navidrome_data`.
 - Persistent Minecraft data is stored under `/home/ubuntu/minecraft-server/data`; backups are under `/home/ubuntu/minecraft-server/backups`.
 - The music catalog served by Navidrome is read from `./music`.

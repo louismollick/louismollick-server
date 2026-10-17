@@ -4,10 +4,11 @@
 .env-navidrome
 .env-shigoto
 .env-kashi
+.env-sure
 traefik/acme.json
 docker/
 music/
 volumes/anki_data/
-volumes/actual_data/
+volumes/sure_postgres/
 volumes/navidrome_data/
 volumes/shigoto_data/

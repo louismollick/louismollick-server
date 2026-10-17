@@ -191,22 +191,89 @@ services:
       - traefik.http.services.kashi.loadbalancer.server.port=8787
       - com.centurylinklabs.watchtower.enable=true
 
-  actual-server:
-    image: docker.io/actualbudget/actual-server:26.3.0@sha256:eb8bc26f53025e07e464594c12d77c52c4b95840c8dadd9b95c4f0c4660f8ad2
+  # Sure (github.com/we-promise/sure) personal finance app. The worker runs
+  # SimpleFIN bank syncs against CIBC Ya Later on the Mac over Tailscale.
+  sure-web:
+    image: ghcr.io/we-promise/sure:0.7.5-hotfix.2@sha256:aa46be2d8e3f8b2182261dc05933a64b4a12543dd5f44ad12f08868caac1f997
     restart: unless-stopped
+    env_file:
+      - .env-sure
+    environment: &sure_env
+      SELF_HOSTED: "true"
+      APP_DOMAIN: budget.louismollick.com
+      RAILS_FORCE_SSL: "false"
+      RAILS_ASSUME_SSL: "true"
+      POSTGRES_USER: sure_user
+      POSTGRES_DB: sure_production
+      DB_HOST: sure-db
+      DB_PORT: 5432
+      REDIS_URL: redis://sure-redis:6379/1
+    # Tailscale's MagicDNS resolves the Mac's *.ts.net hostname and forwards
+    # everything else upstream. Requires Tailscale on the VPS host.
+    dns: &sure_dns
+      - 100.100.100.100
+      - 1.1.1.1
     volumes:
-      - ./volumes/actual_data:/data
+      - sure_storage:/rails/storage
+    depends_on: &sure_depends
+      sure-db:
+        condition: service_healthy
+      sure-redis:
+        condition: service_healthy
     networks:
       - traefik-public
+      - sure
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-public
-      - "traefik.http.routers.actual-server.rule=Host(`budget.louismollick.com`)"
-      - traefik.http.routers.actual-server.entrypoints=websecure
-      - traefik.http.routers.actual-server.tls=true
-      - traefik.http.routers.actual-server.tls.certresolver=le
-      - traefik.http.services.actual-server.loadbalancer.server.port=5006
-      - com.centurylinklabs.watchtower.enable=true
+      - "traefik.http.routers.sure.rule=Host(`budget.louismollick.com`)"
+      - traefik.http.routers.sure.entrypoints=websecure
+      - traefik.http.routers.sure.tls=true
+      - traefik.http.routers.sure.tls.certresolver=le
+      - traefik.http.services.sure.loadbalancer.server.port=3000
+
+  sure-worker:
+    image: ghcr.io/we-promise/sure:0.7.5-hotfix.2@sha256:aa46be2d8e3f8b2182261dc05933a64b4a12543dd5f44ad12f08868caac1f997
+    restart: unless-stopped
+    command: bundle exec sidekiq
+    env_file:
+      - .env-sure
+    environment: *sure_env
+    dns: *sure_dns
+    volumes:
+      - sure_storage:/rails/storage
+    depends_on: *sure_depends
+    networks:
+      - sure
+
+  sure-db:
+    image: postgres:16
+    restart: unless-stopped
+    env_file:
+      - .env-sure
+    environment: *sure_env
+    volumes:
+      - ./volumes/sure_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sure
+
+  sure-redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+      - sure_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sure
 
   minecraft:
     image: itzg/minecraft-server:latest
@@ -278,7 +345,10 @@ services:
 networks:
   traefik-public:
     name: traefik-public
+  sure:
 
 volumes:
   # Named so Docker gives the image's non-root user ownership of it.
   kashi_data:
+  sure_storage:
+  sure_redis:

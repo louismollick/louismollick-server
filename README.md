@@ -84,6 +84,7 @@ Then edit them:
 - In `.env-sure`:
   - Set `SECRET_KEY_BASE` with `openssl rand -hex 64`
   - Set `POSTGRES_PASSWORD` with `openssl rand -hex 32`
+  - Set each `ACTIVE_RECORD_ENCRYPTION_*` key with `openssl rand -hex 32`. Sure encrypts bank tokens with them, so back them up with the database
 - In `/home/ubuntu/minecraft-server/.env`:
   - Set `RCON_PASSWORD` to a long random password
 

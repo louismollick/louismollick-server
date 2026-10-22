@@ -45,7 +45,7 @@ The Anki, lyrics, Kashi, and Shigoto images are built from their respective repo
 - `sure/Dockerfile` keeps the deployed Sure 0.7.6-alpha.7 application/assets while updating Ruby and its resolver. Both Sure processes use the same custom image. To upgrade Sure itself, update the upstream tag/digest in that Dockerfile and test both processes together.
 - `minecraft-server/Dockerfile` keeps the itzg server scripts and supplies the current Java 25 security runtime. The stock Java 25 image lagged the October update. The runtime download is verified against the vendor's SHA-256 checksum, and the build rejects versions older than 25.0.5.
 
-The image workflow publishes `:main` and commit tags to GHCR. Wait for image builds before deployment. Watchtower can pull rebuilt `main` tags; it cannot rebuild applications or advance a pinned Traefik version.
+The image workflow publishes `:main` and commit tags to GHCR. Wait for image builds before deployment. Watchtower can pull rebuilt `main` tags; it cannot rebuild applications or advance the pinned Traefik and Watchtower versions.
 
 ```sh
 docker compose config --no-env-resolution --quiet

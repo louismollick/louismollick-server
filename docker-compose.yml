@@ -348,10 +348,10 @@ services:
     networks:
       - minecraft
   watchtower:
-    image: containrrr/watchtower:latest
+    # Maintained fork of the archived containrrr/watchtower. Pinned because it
+    # holds the Docker socket; bump deliberately like Traefik.
+    image: nickfedor/watchtower:1.23.1
     restart: unless-stopped
-    environment:
-      DOCKER_API_VERSION: "1.44"
     command:
       - --interval
       - "300"

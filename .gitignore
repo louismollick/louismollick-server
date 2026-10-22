@@ -12,3 +12,9 @@ volumes/anki_data/
 volumes/sure_postgres/
 volumes/navidrome_data/
 volumes/shigoto_data/
+
+.env-sure-db
+
+__pycache__/
+
+.env-*.before-*

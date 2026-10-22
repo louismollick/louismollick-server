@@ -1,10 +1,8 @@
 services:
   traefik:
-    image: traefik:v3.7.1
+    image: traefik:v3.7.16
     restart: unless-stopped
     command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --entrypoints.web.http.redirections.entryPoint.to=websecure
@@ -16,17 +14,36 @@ services:
       - --api.dashboard=false
       - --log.level=INFO
       - --accesslog=true
+      - --providers.file.filename=/etc/traefik/routes.yml
+      - --providers.file.watch=true
+      - --entrypoints.websecure.http.middlewares=security-headers@file
+      - --accesslog.format=json
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/routes.yml:/etc/traefik/routes.yml:ro
       - ./traefik/acme.json:/acme.json
     networks:
-      - traefik-public
+      - anki
+      - lyrics
+      - music
+      - kashi
+      - sure-web
     labels:
       - com.centurylinklabs.watchtower.enable=true
-
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    mem_limit: 256m
+    pids_limit: 100
+    user: 1001:1001
   anki-desktop:
     image: ghcr.io/louismollick/anki-desktop-docker:main
     restart: unless-stopped
@@ -37,41 +54,23 @@ services:
     volumes:
       - ./volumes/anki_data:/config
     networks:
-      - traefik-public
+      - anki
     healthcheck:
       test:
         - CMD-SHELL
         - >-
-          curl -fsS --max-time 5 -H 'Content-Type: application/json'
-          -d '{"action":"version","version":6}' http://127.0.0.1:8765
-          | grep -qE '"error"[[:space:]]*:[[:space:]]*null'
-          && gui_status="$$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000)"
-          && [ "$$gui_status" -ge 200 ] && [ "$$gui_status" -lt 500 ]
+          python3 -c 'import json,os,urllib.request; r=urllib.request.Request("http://127.0.0.1:8765",data=json.dumps({"action":"version","version":6,"key":os.environ["ANKICONNECT_API_KEY"]}).encode());
+          result=json.load(urllib.request.urlopen(r,timeout=5)); assert result.get("error") is None and
+          result.get("result")==6' && gui_status="$$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}'
+          http://127.0.0.1:3000)" && [ "$$gui_status" -ge 200 ] && [ "$$gui_status" -lt 500 ]
       start_period: 5m
       interval: 30s
       timeout: 10s
       retries: 3
     labels:
-      - traefik.enable=true
-      - "traefik.http.routers.anki-ui.rule=Host(`anki.louismollick.com`)"
-      - traefik.http.routers.anki-ui.entrypoints=websecure
-      - traefik.http.routers.anki-ui.tls=true
-      - traefik.http.routers.anki-ui.tls.certresolver=le
-      - traefik.http.routers.anki-ui.service=anki-ui
-      - traefik.http.routers.anki-ui.priority=10
-      - traefik.http.services.anki-ui.loadbalancer.server.port=3000
-      - "traefik.http.routers.anki-api.rule=Host(`anki.louismollick.com`) && PathPrefix(`/api`)"
-      - traefik.http.routers.anki-api.entrypoints=websecure
-      - traefik.http.routers.anki-api.tls=true
-      - traefik.http.routers.anki-api.tls.certresolver=le
-      - traefik.http.routers.anki-api.service=anki-api
-      - traefik.http.routers.anki-api.priority=100
-      - traefik.http.routers.anki-api.middlewares=anki-api-strip
-      - traefik.http.services.anki-api.loadbalancer.server.port=8765
-      - traefik.http.middlewares.anki-api-strip.stripprefix.prefixes=/api
       - com.louismollick.anki-cleanup=true
       - com.centurylinklabs.watchtower.enable=true
-
+    pids_limit: 512
   anki-cleanup:
     image: docker:27-cli@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c
     restart: unless-stopped
@@ -120,17 +119,15 @@ services:
     env_file:
       - .env-lyrics
     networks:
-      - traefik-public
+      - lyrics
     labels:
-      - traefik.enable=true
-      - "traefik.http.routers.lyrics-api.rule=Host(`spotify-lyrics-api.louismollick.com`)"
-      - traefik.http.routers.lyrics-api.entrypoints=websecure
-      - traefik.http.routers.lyrics-api.tls=true
-      - traefik.http.routers.lyrics-api.tls.certresolver=le
-      - traefik.http.routers.lyrics-api.service=lyrics-api
-      - traefik.http.services.lyrics-api.loadbalancer.server.port=8080
       - com.centurylinklabs.watchtower.enable=true
-
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 256m
+    pids_limit: 100
   shigoto:
     image: ghcr.io/louismollick/shigoto:main
     restart: unless-stopped
@@ -143,7 +140,13 @@ services:
       - ./volumes/shigoto_data:/data
     labels:
       - com.centurylinklabs.watchtower.enable=true
-
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - shigoto
+    pids_limit: 256
   navidrome:
     image: deluan/navidrome:latest
     restart: unless-stopped
@@ -159,20 +162,20 @@ services:
       - ./volumes/navidrome_data:/data
       - ./music:/music:ro
     networks:
-      - traefik-public
+      - music
     labels:
-      - traefik.enable=true
-      - "traefik.http.routers.navidrome.rule=Host(`music.louismollick.com`)"
-      - traefik.http.routers.navidrome.entrypoints=websecure
-      - traefik.http.routers.navidrome.tls=true
-      - traefik.http.routers.navidrome.tls.certresolver=le
-      - traefik.http.services.navidrome.loadbalancer.server.port=4533
       - com.centurylinklabs.watchtower.enable=true
-
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: 1000:1000
+    mem_limit: 1g
+    pids_limit: 128
   kashi-server:
     # Song analyses for the Kashi-Koi app (github.com/louismollick/kashi-koi, apps/server).
     # pr-8 is the PR build; switch to :main once the PR is merged.
-    image: ghcr.io/louismollick/kashi-koi-server:pr-8
+    image: ghcr.io/louismollick/kashi-koi-server:main
     restart: unless-stopped
     env_file:
       - .env-kashi
@@ -181,27 +184,25 @@ services:
     volumes:
       - kashi_data:/data
     networks:
-      - traefik-public
+      - kashi
+      - music
     labels:
-      - traefik.enable=true
-      - "traefik.http.routers.kashi.rule=Host(`kashi.louismollick.com`)"
-      - traefik.http.routers.kashi.entrypoints=websecure
-      - traefik.http.routers.kashi.tls=true
-      - traefik.http.routers.kashi.tls.certresolver=le
-      - traefik.http.services.kashi.loadbalancer.server.port=8787
       - com.centurylinklabs.watchtower.enable=true
-
-  # Sure (github.com/we-promise/sure) personal finance app. The worker runs
-  # SimpleFIN bank syncs against CIBC Ya Later on the Mac over Tailscale.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 1g
+    pids_limit: 256
   sure-web:
-    image: ghcr.io/we-promise/sure:0.7.6-alpha.7@sha256:5104d53b5ea184d60f7b895dbcbf766d3af7df390ea42f150b9380726d1dfbc6
+    image: ghcr.io/louismollick/louismollick-server-sure:main
     restart: unless-stopped
     env_file:
       - .env-sure
     environment: &sure_env
       SELF_HOSTED: "true"
       APP_DOMAIN: budget.louismollick.com
-      RAILS_FORCE_SSL: "false"
+      RAILS_FORCE_SSL: "true"
       RAILS_ASSUME_SSL: "true"
       POSTGRES_USER: sure_user
       POSTGRES_DB: sure_production
@@ -221,19 +222,17 @@ services:
       sure-redis:
         condition: service_healthy
     networks:
-      - traefik-public
+      - sure-web
       - sure
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=traefik-public
-      - "traefik.http.routers.sure.rule=Host(`budget.louismollick.com`)"
-      - traefik.http.routers.sure.entrypoints=websecure
-      - traefik.http.routers.sure.tls=true
-      - traefik.http.routers.sure.tls.certresolver=le
-      - traefik.http.services.sure.loadbalancer.server.port=3000
-
+    labels: []
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 2g
+    pids_limit: 256
   sure-worker:
-    image: ghcr.io/we-promise/sure:0.7.6-alpha.7@sha256:5104d53b5ea184d60f7b895dbcbf766d3af7df390ea42f150b9380726d1dfbc6
+    image: ghcr.io/louismollick/louismollick-server-sure:main
     restart: unless-stopped
     command: bundle exec sidekiq
     env_file:
@@ -245,13 +244,20 @@ services:
     depends_on: *sure_depends
     networks:
       - sure
-
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 2g
+    pids_limit: 256
   sure-db:
     image: postgres:16
     restart: unless-stopped
     env_file:
-      - .env-sure
-    environment: *sure_env
+      - .env-sure-db
+    environment:
+      POSTGRES_USER: sure_user
+      POSTGRES_DB: sure_production
     volumes:
       - ./volumes/sure_postgres:/var/lib/postgresql/data
     healthcheck:
@@ -262,6 +268,7 @@ services:
     networks:
       - sure
 
+    pids_limit: 100
   sure-redis:
     image: redis:7
     restart: unless-stopped
@@ -275,8 +282,15 @@ services:
     networks:
       - sure
 
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 100
+    user: redis
   minecraft:
-    image: itzg/minecraft-server:latest
+    image: ghcr.io/louismollick/louismollick-server-minecraft:main
     container_name: minecraft
     restart: unless-stopped
     ports:
@@ -308,6 +322,10 @@ services:
       timeout: 10s
       retries: 5
 
+    networks:
+      - minecraft
+    mem_limit: 7g
+    pids_limit: 512
   minecraft-backup:
     image: itzg/mc-backup:latest
     container_name: minecraft-backup
@@ -322,12 +340,14 @@ services:
       RCON_HOST: "minecraft"
       BACKUP_INTERVAL: "24h"
       INITIAL_DELAY: "2m"
-      PRUNE_BACKUPS_COUNT: "1"
+      PRUNE_BACKUPS_COUNT: "14"
       PAUSE_IF_NO_PLAYERS: "false"
     volumes:
       - ${MINECRAFT_SERVER_DIR:-/home/ubuntu/minecraft-server}/data:/data:ro
       - ${MINECRAFT_SERVER_DIR:-/home/ubuntu/minecraft-server}/backups:/backups
 
+    networks:
+      - minecraft
   watchtower:
     image: containrrr/watchtower:latest
     restart: unless-stopped
@@ -342,10 +362,25 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - updates
+    read_only: true
+    mem_limit: 128m
+    pids_limit: 100
 networks:
-  traefik-public:
-    name: traefik-public
-  sure:
+  anki: {}
+  lyrics: {}
+  music: {}
+  kashi: {}
+  sure-web: {}
+  sure: {}
+  shigoto: {}
+  updates: {}
+  minecraft: {}
 
 volumes:
   # Named so Docker gives the image's non-root user ownership of it.

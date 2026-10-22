@@ -1,0 +1,98 @@
+http:
+  routers:
+    anki-ui:
+      rule: Host(`anki.louismollick.com`)
+      entryPoints:
+      - websecure
+      tls:
+        certResolver: le
+      service: anki-ui
+      priority: 10
+    anki-api:
+      rule: Host(`anki.louismollick.com`) && (Path(`/api`) || PathPrefix(`/api/`))
+      entryPoints:
+      - websecure
+      tls:
+        certResolver: le
+      service: anki-api
+      priority: 100
+      middlewares:
+      - anki-api-strip
+    lyrics-api:
+      rule: Host(`spotify-lyrics-api.louismollick.com`)
+      entryPoints:
+      - websecure
+      tls:
+        certResolver: le
+      service: lyrics-api
+      middlewares:
+      - lyrics-limit
+      - lyrics-size
+    navidrome:
+      rule: Host(`music.louismollick.com`)
+      entryPoints:
+      - websecure
+      tls:
+        certResolver: le
+      service: navidrome
+    kashi:
+      rule: Host(`kashi.louismollick.com`)
+      entryPoints:
+      - websecure
+      tls:
+        certResolver: le
+      service: kashi
+    sure:
+      rule: Host(`budget.louismollick.com`)
+      entryPoints:
+      - websecure
+      tls:
+        certResolver: le
+      service: sure
+  services:
+    anki-ui:
+      loadBalancer:
+        servers:
+        - url: http://anki-desktop:3000
+    anki-api:
+      loadBalancer:
+        servers:
+        - url: http://anki-desktop:8765
+    lyrics-api:
+      loadBalancer:
+        servers:
+        - url: http://spotify-lyrics-api:8080
+    navidrome:
+      loadBalancer:
+        servers:
+        - url: http://navidrome:4533
+    kashi:
+      loadBalancer:
+        servers:
+        - url: http://kashi-server:8787
+    sure:
+      loadBalancer:
+        servers:
+        - url: http://sure-web:3000
+  middlewares:
+    anki-api-strip:
+      stripPrefix:
+        prefixes:
+        - /api
+    security-headers:
+      headers:
+        stsSeconds: 31536000
+        contentTypeNosniff: true
+        referrerPolicy: strict-origin-when-cross-origin
+    lyrics-limit:
+      rateLimit:
+        average: 5
+        period: 1s
+        burst: 20
+    lyrics-size:
+      buffering:
+        maxRequestBodyBytes: 1048576
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12

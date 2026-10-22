@@ -1,363 +1,90 @@
-# Personal VPS Reverse Proxy Stack
+# Personal VPS services
 
-This repository contains a Docker Compose stack for running personal services behind Traefik with automatic HTTPS from Let's Encrypt.
+Docker Compose runs Anki, Sure, Navidrome, lyrics, Kashi-Koi, Shigoto, and Minecraft. Traefik serves HTTPS on ports 80/443; Minecraft publishes 25565. Backend ports are private.
 
-Current services:
+## Configure
 
-- `https://anki.louismollick.com/` -> Anki desktop via KasmVNC
-- `https://anki.louismollick.com/api` -> AnkiConnect API
-- `https://budget.louismollick.com/` -> Sure personal finance app
-- `https://music.louismollick.com/` -> Navidrome music server
-- `https://kashi.louismollick.com/` -> Kashi-Koi song analysis server
-- `https://spotify-lyrics-api.louismollick.com/` -> Spotify lyrics API
-- `168.138.74.194:25565` -> Paper Minecraft server
-- `shigoto` -> job aggregator that syncs to Google Sheets every 6h (no web UI)
+Copy `.env-*.example` files to their corresponding `.env-*` names. Keep the real files private and outside Git. Minecraft uses `/home/ubuntu/minecraft-server/.env`, or set `MINECRAFT_SERVER_DIR` to another directory containing `.env`, `data`, and `backups`.
 
-Traefik is the public web entrypoint. It listens on ports `80` and `443`, redirects HTTP to HTTPS, and stores ACME certificate state in `traefik/acme.json`. Minecraft publishes `25565/tcp` directly.
+- `.env-anki`: set a strong KasmVNC `PASSWORD`, optional AnkiWeb sync credentials, and an `ANKICONNECT_API_KEY` of at least 32 random characters. `python3 scripts/configure-anki.py` generates the key once and allows the exact Mokuro origin. The image refuses to launch Anki without a valid key or with wildcard CORS, and reapplies settings to existing volumes on every launch.
+- `.env-lyrics`: set Spotify's `SP_DC` cookie.
+- `.env-sure`: set `SECRET_KEY_BASE`, `POSTGRES_PASSWORD`, and the three `ACTIVE_RECORD_ENCRYPTION_*` secrets. Preserve encryption keys when upgrading.
+- `.env-sure-db`: set the same `POSTGRES_PASSWORD`. PostgreSQL gets only its database credentials, not the Rails encryption/session keys.
+- `.env-kashi`, `.env-shigoto`, `.env-navidrome`: follow their examples. Shigoto's Google service account key belongs at `volumes/shigoto_data/google.json`.
 
-## Requirements
+Generate a random secret with `openssl rand -hex 32`. Set real env files to mode 600.
 
-Before starting:
+Create certificate storage, owned by the VPS's Ubuntu user, UID/GID 1001:
 
-- Ubuntu VPS with Docker Engine installed
-- Docker Compose plugin installed (`docker compose`)
-- DNS records pointing at the VPS public IP:
-  - `anki.louismollick.com`
-  - `budget.louismollick.com`
-  - `music.louismollick.com`
-  - `kashi.louismollick.com`
-  - `spotify-lyrics-api.louismollick.com`
-- Ports `80/tcp`, `443/tcp`, and `25565/tcp` open in the VPS firewall / cloud security group
-- Tailscale installed on the VPS host, for Sure's bank sync with CIBC Ya Later on the Mac (see [Tailscale](#tailscale))
-
-## Files In This Repo
-
-- [`docker-compose.yml`](/Users/mollicl/personal/louismollick-server/docker-compose.yml): main stack definition
-- [`/.env-anki.example`](/Users/mollicl/personal/louismollick-server/.env-anki.example): example runtime variables for Anki
-- [`/.env-lyrics.example`](/Users/mollicl/personal/louismollick-server/.env-lyrics.example): example runtime variables for lyrics API
-- [`/.env-navidrome.example`](/Users/mollicl/personal/louismollick-server/.env-navidrome.example): example runtime variables for Navidrome
-- [`/minecraft-server/.env.example`](/Users/mollicl/personal/louismollick-server/minecraft-server/.env.example): example Minecraft RCON secret
-- `/home/ubuntu/minecraft-server/data`: persistent Minecraft server and world data on the VPS
-- `/home/ubuntu/minecraft-server/backups`: daily Minecraft backups on the VPS
-- [`/music`](/Users/mollicl/personal/louismollick-server/music): local music library mounted read-only into Navidrome (create this yourself; it is gitignored)
-- [`/traefik/acme.json`](/Users/mollicl/personal/louismollick-server/traefik/acme.json): runtime ACME state file created locally on the server
-- [`/volumes/anki_data`](/Users/mollicl/personal/louismollick-server/volumes/anki_data): persistent Anki data
-- [`.env-sure.example`](./.env-sure.example): example secrets for Sure
-- `volumes/sure_postgres`: Sure's Postgres database
-- `sure_storage` and `sure_redis` Docker volumes: Sure uploads and Sidekiq queue state
-- [`.env-shigoto.example`](./.env-shigoto.example): example runtime variables for shigoto
-- [`.env-kashi.example`](./.env-kashi.example): example runtime variables for the Kashi-Koi server
-- `kashi_data` Docker volume: Kashi-Koi analyses (SQLite) and its Codex login
-- `volumes/shigoto_data`: shigoto SQLite history (`shigoto.db`) and the Google service account key (`google.json`)
-- [`/volumes/navidrome_data`](/Users/mollicl/personal/louismollick-server/volumes/navidrome_data): persistent Navidrome state (database, cache, artwork)
-
-## Getting Started
-
-### 1. Create runtime env files
-
-Copy the committed examples into real runtime files:
-
-```bash
-cp .env-anki.example .env-anki
-cp .env-lyrics.example .env-lyrics
-cp .env-navidrome.example .env-navidrome
-cp .env-kashi.example .env-kashi
-cp .env-sure.example .env-sure
-cp minecraft-server/.env.example /home/ubuntu/minecraft-server/.env
-```
-
-Then edit them:
-
-- In `.env-anki`:
-  - Set `PASSWORD` to a long random password
-  - Optionally set `ANKIWEB_USER` plus either `ANKIWEB_PASSWORD` or `ANKIWEB_SYNC_KEY`
-  - Adjust `TZ` if you do not want `UTC`
-- In `.env-lyrics`:
-  - Set `SP_DC` to your Spotify `sp_dc` cookie value
-- In `.env-navidrome`:
-  - Set `TZ` to your preferred timezone if you do not want `UTC`
-  - Adjust `ND_SCANSCHEDULE` if you want a different rescan interval
-  - Adjust `ND_LOGLEVEL` if you want more or less log verbosity
-- In `.env-kashi`:
-  - Set `KASHI_ADMIN_TOKEN` to a long random secret (`openssl rand -hex 32`); enter the same value as the admin token in the app's Settings
-  - Set `NAVIDROME_USER` and `NAVIDROME_PASSWORD` to a Navidrome account, used only by the backfill
-- In `.env-sure`:
-  - Set `SECRET_KEY_BASE` with `openssl rand -hex 64`
-  - Set `POSTGRES_PASSWORD` with `openssl rand -hex 32`
-  - Set each `ACTIVE_RECORD_ENCRYPTION_*` key with `openssl rand -hex 32`. Sure encrypts bank tokens with them, so back them up with the database
-- In `/home/ubuntu/minecraft-server/.env`:
-  - Set `RCON_PASSWORD` to a long random password
-
-### 1b. Add your music library for Navidrome
-
-Create the music directory and copy your audio library into it:
-
-```bash
-mkdir -p music
-cp -R /path/to/your/music/. music/
-```
-
-The `navidrome` service mounts this directory read-only into the container at `/music`.
-
-Runtime files `.env-anki`, `.env-lyrics`, `.env-navidrome`, `.env-shigoto`, `.env-kashi`, and `.env-sure` are ignored by git.
-The `music/` directory and the `volumes/sure_postgres/` and `volumes/navidrome_data/` directories are also ignored by git.
-
-### 2. Create the ACME storage file
-
-Traefik writes certificate data into `traefik/acme.json`. You do not populate it manually.
-
-Create it and lock down permissions:
-
-```bash
+```sh
 mkdir -p traefik
 touch traefik/acme.json
 chmod 600 traefik/acme.json
 ```
 
-### 3. Log the Kashi-Koi server in to Codex
+Traefik runs as UID/GID 1001. Navidrome and Shigoto run as UID/GID 1000. Their persistent data directories must be writable by that user. On an existing installation, stop each service before changing ownership. Do not change the ownership of Sure's PostgreSQL directory.
 
-The Kashi-Koi server analyses songs with `codex exec` on your ChatGPT subscription. Log in once; the login is kept in the `kashi_data` volume:
+## Mokuro and Anki
 
-```bash
-docker compose run --rm kashi-server codex login --device-auth
+Use `https://anki.louismollick.com/api` in Mokuro's Anki settings and paste the private API key from `.env-anki` into Mokuro's API-key field. The allowed origin is `https://mokuro-reader-louis.vercel.app`. URL fragments such as `#/catalog` are not part of an origin. Native clients without an Origin header still need the key.
+
+Every JSON request includes a top-level `key`:
+
+```json
+{"action":"deckNames","version":6,"key":"your-private-key"}
 ```
 
-### 4. Start the stack
+The KasmVNC desktop password and AnkiConnect API key protect separate endpoints. Collection access is powerful: AnkiConnect also supports reading local files and importing/exporting packages. Treat its key as a credential for the Anki container.
 
-Bring up all services:
+To rotate the key, update `.env-anki`, recreate Anki, then update Mokuro. A plain restart does not reread Compose env files.
 
-```bash
+## Build and update
+
+The Anki, lyrics, Kashi, and Shigoto images are built from their respective repositories. Their workflows refresh base images daily, enforce minimum patched runtimes, and rebuild on pushes. This repository builds two additional images:
+
+- `sure/Dockerfile` keeps the deployed Sure 0.7.6-alpha.7 application/assets while updating Ruby and its resolver. Both Sure processes use the same custom image. To upgrade Sure itself, update the upstream tag/digest in that Dockerfile and test both processes together.
+- `minecraft-server/Dockerfile` keeps the itzg server scripts and supplies the current Java 25 security runtime. The stock Java 25 image lagged the October update. The runtime download is verified against the vendor's SHA-256 checksum, and the build rejects versions older than 25.0.5.
+
+The image workflow publishes `:main` and commit tags to GHCR. Wait for image builds before deployment. Watchtower can pull rebuilt `main` tags; it cannot rebuild applications or advance a pinned Traefik version.
+
+```sh
+docker compose config --no-env-resolution --quiet
+docker compose pull
 docker compose up -d
-```
-
-To queue an analysis for every synced Japanese song already in Navidrome:
-
-```bash
-docker compose exec kashi-server node --import tsx apps/server/src/backfill.ts
-```
-
-If you want to inspect the resolved Compose config first:
-
-```bash
-docker compose config
-```
-
-### 5. Set up Sure
-
-Open `https://budget.louismollick.com/` and register. The first account is the instance admin. Then, in **Settings > Self-Hosting > Onboarding**, choose **Closed** so nobody else can register.
-
-To connect CIBC, generate a client token in CIBC Ya Later on the Mac and paste it into Sure's SimpleFIN connection. Sure's image is pinned by digest, so Watchtower does not update it. To upgrade, change the tag and digest of `sure-web` and `sure-worker` together.
-
-### Tailscale
-
-Sure's worker reaches the Mac at `https://<mac>.<tailnet>.ts.net/simplefin`. Install Tailscale on the VPS host, not in a container, so containers reach the tailnet through the host's routes:
-
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
-tailscale ip -4
-```
-
-In the Tailscale admin console, disable key expiry for the VPS so it stays connected. Use the printed IP as `budget-vps` in CIBC Ya Later's tailnet policy, which allows the VPS to reach only the Mac's port `443`.
-
-The Sure containers use Tailscale's MagicDNS (`100.100.100.100`) to resolve the Mac's hostname. Check it from inside the stack:
-
-```bash
-docker compose exec sure-worker curl -fsS https://<mac>.<tailnet>.ts.net/simplefin/info
-```
-
-It should print `{"versions":["1.0"]}`.
-
-## What Starts
-
-The Compose stack includes:
-
-- `traefik`: reverse proxy, HTTPS, certificate management
-- `anki-desktop`: Anki desktop image with KasmVNC on internal port `3000` and AnkiConnect on internal port `8765`
-- `anki-cleanup`: restarts Anki when its API is unhealthy or memory reaches 75% of its limit
-- `sure-web`, `sure-worker`, `sure-db`, `sure-redis`: [Sure](https://github.com/we-promise/sure) on internal port `3000`, with a Sidekiq worker, Postgres in `./volumes/sure_postgres`, and Redis. Only `sure-web` joins the Traefik network
-- `navidrome`: music server on internal port `4533`, with persistent state in `./volumes/navidrome_data`
-  - Mounts `./music` read-only into `/music` so your catalog is available to the server
-  - Purges missing database entries after full scans so moved or deleted files do not remain as ghost tracks
-- `spotify-lyrics-api`: lyrics service on internal port `8080`
-- `kashi-server`: [Kashi-Koi](https://github.com/louismollick/kashi-koi) song analysis API on internal port `8787`, with its database and Codex login in the `kashi_data` volume. Reads lyrics from Navidrome over the internal network for the backfill
-- `shigoto`: [job aggregator](https://github.com/louismollick/shigoto); scrapes job boards every 6h into `./volumes/shigoto_data/shigoto.db` and syncs the delta to the `Shigoto` tab of a Google Sheet. Needs `.env-shigoto` and the service account key at `./volumes/shigoto_data/google.json`
-- `minecraft`: Paper Minecraft server on host port `25565`, with persistent data in `/home/ubuntu/minecraft-server/data`
-- `minecraft-backup`: daily Minecraft backups retained for 14 days in `/home/ubuntu/minecraft-server/backups`
-- `watchtower`: periodically checks for newer images and updates labeled containers
-
-The web app containers do not publish host ports directly. Traefik binds `80` and `443`; Minecraft binds `25565` directly.
-
-## First Boot Verification
-
-After `docker compose up -d`, verify the stack:
-
-### Check container status
-
-```bash
 docker compose ps
 ```
 
-### Check logs
+Back up data before upgrades. Avoid starting Watchtower or `anki-cleanup` while doing security maintenance. Start them after the application checks pass. Both helpers hold privileged Docker socket access; they have no shared application network, and the cleanup helper has no network at all.
 
-Traefik:
+## Proxy and networks
 
-```bash
-docker compose logs -f traefik
-```
+Routes live in `traefik/routes.yml`. Traefik uses the file provider and has **no Docker socket**. Apps have separate networks; Kashi also joins Navidrome's music network for its backfill. Sure's database/queue network is separate from its web network.
 
-Watchtower:
+Routes:
 
-```bash
-docker compose logs -f watchtower
-```
+- `anki.louismollick.com`: desktop on port 3000; `/api` on port 8765 with prefix stripping.
+- `budget.louismollick.com`: Sure on port 3000.
+- `music.louismollick.com`: Navidrome on port 4533.
+- `kashi.louismollick.com`: Kashi API on port 8787.
+- `spotify-lyrics-api.louismollick.com`: lyrics on port 8080, with request-size and rate limits.
 
-### Confirm HTTPS routes
+HTTP redirects to HTTPS. HTTPS responses use HSTS; Sure sets secure cookies. The dashboard is disabled. Routing changes require editing the file rather than adding Docker labels.
 
-Open these URLs in a browser:
+## Host maintenance
 
-- `https://anki.louismollick.com/`
-- `https://budget.louismollick.com/`
-- `https://music.louismollick.com/`
-- `https://kashi.louismollick.com/health`
-- `https://anki.louismollick.com/api`
-- `https://spotify-lyrics-api.louismollick.com/`
+Review and run `sudo bash scripts/harden-host.sh` on this VPS. It disables root/password SSH login, allows only the intended host ports plus Tailscale, enables UFW, disables unused RPC binding when no NFS mount is present, restricts secret-file permissions, and bounds logs for new containers. Docker-published ports bypass normal UFW filtering, so keep Compose port publications deliberate and retain the cloud firewall.
 
-Expected behavior:
+Install supported host updates and reboot when `/var/run/reboot-required` exists. Keep a second SSH session or Oracle console available. After reboot verify `uname -r`, SSH, Tailscale, Docker, and container health. Installed kernel packages do not patch a still-running old kernel.
 
-- `http://` requests redirect to `https://`
-- `https://anki.louismollick.com/` loads the Anki KasmVNC page
-- `https://budget.louismollick.com/` loads the Sure sign-in page
-- `https://music.louismollick.com/` loads the Navidrome UI
-- `https://kashi.louismollick.com/health` returns `{"status":"ok"}`
-- `https://anki.louismollick.com/api` reaches AnkiConnect through Traefik
-- `https://spotify-lyrics-api.louismollick.com/` reaches the lyrics API through Traefik
+## Persistent data
 
-You can also test redirects from the server:
+- Anki: `volumes/anki_data`.
+- Navidrome: `volumes/navidrome_data`; music is mounted read-only from `music`.
+- Shigoto: `volumes/shigoto_data`, writable by UID 1000.
+- Sure: `volumes/sure_postgres`, plus named `sure_storage` and `sure_redis` volumes.
+- Kashi: named `kashi_data` volume, including its Codex login.
+- Minecraft: `/home/ubuntu/minecraft-server/data` and `backups`. Daily backups retain 14 copies.
 
-```bash
-curl -I http://anki.louismollick.com/
-curl -I http://budget.louismollick.com/
-curl -I http://spotify-lyrics-api.louismollick.com/
-```
+Sure reaches CIBC Ya Later on the Mac through Tailscale installed on the host. Its containers use MagicDNS at `100.100.100.100`, with a public resolver fallback. Verify the Mac's `/simplefin/info` endpoint from the worker after network changes.
 
-## Updating Services
-
-Watchtower is configured to:
-
-- check every 300 seconds
-- clean up old images after updating
-- only update containers with the label `com.centurylinklabs.watchtower.enable=true`
-
-Manual update flow:
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-## Common Commands
-
-Start:
-
-```bash
-docker compose up -d
-```
-
-Stop:
-
-```bash
-docker compose down
-```
-
-Restart one service:
-
-```bash
-docker compose restart traefik
-docker compose restart anki-desktop
-docker compose restart sure-web sure-worker
-docker compose restart navidrome
-docker compose restart spotify-lyrics-api
-docker compose restart kashi-server
-docker compose restart minecraft
-```
-
-Anki is limited to 2 GiB total RAM and swap. Its cleanup service checks the
-AnkiConnect API and web UI every minute, restarting Anki when either is
-unhealthy or memory reaches 75% of the limit. Check the watchdog with:
-
-```bash
-docker compose logs anki-cleanup
-```
-
-The watchdog selects only the container carrying its dedicated
-`com.louismollick.anki-cleanup=true` label. It has no network, a read-only root
-filesystem, dropped capabilities, and a pinned image digest. Its writable Docker
-socket is nevertheless root-equivalent access to the VPS Docker daemon.
-
-View logs:
-
-```bash
-docker compose logs -f
-```
-
-## Troubleshooting
-
-### Certificates are not being issued
-
-Check:
-
-- DNS for all configured hostnames points to the VPS public IP
-- ports `80` and `443` are reachable from the internet
-- `traefik/acme.json` exists and is mode `600`
-- Traefik logs for ACME challenge errors:
-
-```bash
-docker compose logs traefik
-```
-
-### `docker compose` fails because env files are missing
-
-Make sure these files exist:
-
-- `.env-anki`
-- `.env-lyrics`
-- `.env-navidrome`
-- `.env-kashi`
-- `.env-sure`
-- `/home/ubuntu/minecraft-server/.env`
-
-The `.example` files are templates only and are not loaded automatically by Compose.
-
-If Navidrome starts but your library is empty, make sure `./music` contains supported audio files and restart the service:
-
-```bash
-docker compose restart navidrome
-```
-
-### Anki UI loads but login fails
-
-Verify the runtime values in `.env-anki`:
-
-- `CUSTOM_USER`
-- `PASSWORD`
-
-Then restart the Anki service:
-
-```bash
-docker compose restart anki-desktop
-```
-
-### Anki API or lyrics API returns the wrong route
-
-This stack depends on Traefik stripping the `/api` prefix before proxying upstream. If requests fail, inspect the router and middleware labels in [`docker-compose.yml`](./docker-compose.yml).
-
-## Notes
-
-- `traefik/acme.json` contains sensitive certificate/account state. Keep it private and do not hand-edit it while Traefik is running.
-- Persistent Anki data is stored under `./volumes/anki_data`.
-- Sure's database is stored under `./volumes/sure_postgres`.
-- Persistent Navidrome state is stored under `./volumes/navidrome_data`.
-- Persistent Minecraft data is stored under `/home/ubuntu/minecraft-server/data`; backups are under `/home/ubuntu/minecraft-server/backups`.
-- The music catalog served by Navidrome is read from `./music`.
-- The Traefik dashboard is intentionally not exposed.
+For a first Sure installation, register the admin account and close further registration in Settings > Self-Hosting > Onboarding. Preserve existing database users, bank tokens, and encryption keys during recovery.

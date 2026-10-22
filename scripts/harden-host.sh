@@ -53,3 +53,4 @@ p.parent.mkdir(parents=True, exist_ok=True)
 p.write_text(json.dumps(d, indent=2) + '\n')
 PY
 dockerd --validate --config-file /etc/docker/daemon.json
+systemctl enable docker.service

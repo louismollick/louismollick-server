@@ -1,0 +1,33 @@
+// Tailnet access policy. Paste into https://login.tailscale.com/admin/acls,
+// then tag the VPS machine with tag:vps in the admin console.
+//
+// The VPS runs public-facing containers that share the host's tailnet route,
+// so it gets only what Sure needs: CIBC Ya Later's SimpleFIN endpoint, served
+// by Tailscale Serve on the Mac's port 443. Tagged machines are excluded from
+// autogroup:member, so the first grant does not cover the VPS as a source.
+{
+	"tagOwners": {
+		"tag:vps": ["autogroup:admin"],
+	},
+
+	"hosts": {
+		"cibc-mac": "100.76.71.61",
+	},
+
+	"grants": [
+		// Personal devices can reach everything, including the VPS.
+		{"src": ["autogroup:member"], "dst": ["*"], "ip": ["*"]},
+		// Sure on the VPS -> CIBC Ya Later SimpleFIN on the Mac.
+		{"src": ["tag:vps"], "dst": ["cibc-mac"], "ip": ["tcp:443"]},
+	],
+
+	// Tailscale's default SSH rule: members can SSH into their own devices.
+	"ssh": [
+		{
+			"action": "check",
+			"src":    ["autogroup:member"],
+			"dst":    ["autogroup:self"],
+			"users":  ["autogroup:nonroot", "root"],
+		},
+	],
+}

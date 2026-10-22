@@ -87,4 +87,6 @@ Install supported host updates and reboot when `/var/run/reboot-required` exists
 
 Sure reaches CIBC Ya Later on the Mac through Tailscale installed on the host. Its containers use MagicDNS at `100.100.100.100`, with a public resolver fallback. Verify the Mac's `/simplefin/info` endpoint from the worker after network changes.
 
+`tailscale/policy.hujson` is the tailnet access policy. The VPS is tagged `tag:vps` and may only reach the Mac's port 443, so a compromised container cannot reach other tailnet devices. Paste the file into the Tailscale admin console after editing it.
+
 For a first Sure installation, register the admin account and close further registration in Settings > Self-Hosting > Onboarding. Preserve existing database users, bank tokens, and encryption keys during recovery.

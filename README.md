@@ -96,7 +96,7 @@ Install supported host updates and reboot when `/var/run/reboot-required` exists
 - Sure: `volumes/sure_postgres`, plus named `sure_storage` and `sure_redis` volumes.
 - Kashi: named `kashi_data` volume, including its Codex login.
 - Happy Travels: `volumes/happy_travels`, replaced on every deploy, so it needs no backup.
-- Minecraft: `/home/ubuntu/minecraft-server/data` and `backups`. Daily backups retain 14 copies.
+- Minecraft: `/home/ubuntu/minecraft-server/data` and `backups`. Daily backups keep only the latest copy, because each is about 730 MB and 14 of them filled the disk.
 
 Sure reaches CIBC Ya Later on the Mac through Tailscale installed on the host. Its containers use MagicDNS at `100.100.100.100`, with a public resolver fallback. Verify the Mac's `/simplefin/info` endpoint from the worker after network changes.
 

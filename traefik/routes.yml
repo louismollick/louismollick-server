@@ -49,6 +49,26 @@ http:
       tls:
         certResolver: le
       service: sure
+    happy-travels:
+      rule: Host(`happy-travels.louismollick.com`)
+      entryPoints:
+      - websecure
+      tls:
+        certResolver: le
+      service: happy-travels
+      priority: 10
+      middlewares:
+      - happy-travels-compress
+    happy-travels-login:
+      rule: Host(`happy-travels.louismollick.com`) && Path(`/login`) && Method(`POST`)
+      entryPoints:
+      - websecure
+      tls:
+        certResolver: le
+      service: happy-travels
+      priority: 100
+      middlewares:
+      - happy-travels-login-limit
   services:
     anki-ui:
       loadBalancer:
@@ -74,6 +94,10 @@ http:
       loadBalancer:
         servers:
         - url: http://sure-web:3000
+    happy-travels:
+      loadBalancer:
+        servers:
+        - url: http://happy-travels:8080
   middlewares:
     anki-api-strip:
       stripPrefix:
@@ -92,6 +116,13 @@ http:
     lyrics-size:
       buffering:
         maxRequestBodyBytes: 1048576
+    happy-travels-compress:
+      compress: {}
+    happy-travels-login-limit:
+      rateLimit:
+        average: 10
+        period: 1m
+        burst: 10
 tls:
   options:
     default:

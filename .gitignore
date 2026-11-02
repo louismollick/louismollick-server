@@ -5,6 +5,7 @@
 .env-shigoto
 .env-kashi
 .env-sure
+.env-happy-travels
 traefik/acme.json
 docker/
 music/
@@ -12,6 +13,7 @@ volumes/anki_data/
 volumes/sure_postgres/
 volumes/navidrome_data/
 volumes/shigoto_data/
+volumes/happy_travels/
 
 .env-sure-db
 

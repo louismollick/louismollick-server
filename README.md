@@ -1,6 +1,6 @@
 # Personal VPS services
 
-Docker Compose runs Anki, Sure, Navidrome, lyrics, Kashi-Koi, Shigoto, and Minecraft. Traefik serves HTTPS on ports 80/443; Minecraft publishes 25565. Backend ports are private.
+Docker Compose runs Anki, Sure, Navidrome, lyrics, Kashi-Koi, Shigoto, Happy Travels, and Minecraft. Traefik serves HTTPS on ports 80/443; Minecraft publishes 25565. Backend ports are private.
 
 ## Configure
 
@@ -10,6 +10,7 @@ Copy `.env-*.example` files to their corresponding `.env-*` names. Keep the real
 - `.env-lyrics`: set Spotify's `SP_DC` cookie.
 - `.env-sure`: set `SECRET_KEY_BASE`, `POSTGRES_PASSWORD`, and the three `ACTIVE_RECORD_ENCRYPTION_*` secrets. Preserve encryption keys when upgrading.
 - `.env-sure-db`: set the same `POSTGRES_PASSWORD`. PostgreSQL gets only its database credentials, not the Rails encryption/session keys.
+- `.env-happy-travels`: written by `happy-travels/set-password.py`, see [Happy Travels](#happy-travels).
 - `.env-kashi`, `.env-shigoto`, `.env-navidrome`: follow their examples. Shigoto's Google service account key belongs at `volumes/shigoto_data/google.json`.
 
 Generate a random secret with `openssl rand -hex 32`. Set real env files to mode 600.
@@ -67,8 +68,19 @@ Routes:
 - `music.louismollick.com`: Navidrome on port 4533.
 - `kashi.louismollick.com`: Kashi API on port 8787.
 - `spotify-lyrics-api.louismollick.com`: lyrics on port 8080, with request-size and rate limits.
+- `happy-travels.louismollick.com`: the password gate on port 8080, with a rate limit on login attempts.
 
 HTTP redirects to HTTPS. HTTPS responses use HSTS; Sure sets secure cookies. The dashboard is disabled. Routing changes require editing the file rather than adding Docker labels.
+
+Traefik watches `routes.yml` and applies an in-place edit without a restart. `git pull` replaces the file with a new inode, which the running container does not see, so a route change only reaches it through an in-place write or by recreating Traefik.
+
+## Happy Travels
+
+A private static site at `https://happy-travels.louismollick.com`. `happy-travels/gate.mjs` is both the password gate and the file server, so without a valid cookie a request can only get the login page, whatever the path. The gate has its own internal network and no outbound access.
+
+- This repo holds the gate, the routes, and the Compose wiring. The site's private repo builds the files and ships them to `volumes/happy_travels` on every push to its `main`. There is no restart and no step here.
+- That repo deploys with a dedicated SSH key. Its `authorized_keys` line runs `rrsync`, so the key can only write to `volumes/happy_travels`.
+- To change the password, run `python3 happy-travels/set-password.py` here, then `docker compose up -d --no-deps --force-recreate happy-travels`. This also logs everyone out.
 
 ## Host maintenance
 
@@ -83,6 +95,7 @@ Install supported host updates and reboot when `/var/run/reboot-required` exists
 - Shigoto: `volumes/shigoto_data`, writable by UID 1000.
 - Sure: `volumes/sure_postgres`, plus named `sure_storage` and `sure_redis` volumes.
 - Kashi: named `kashi_data` volume, including its Codex login.
+- Happy Travels: `volumes/happy_travels`, replaced on every deploy, so it needs no backup.
 - Minecraft: `/home/ubuntu/minecraft-server/data` and `backups`. Daily backups retain 14 copies.
 
 Sure reaches CIBC Ya Later on the Mac through Tailscale installed on the host. Its containers use MagicDNS at `100.100.100.100`, with a public resolver fallback. Verify the Mac's `/simplefin/info` endpoint from the worker after network changes.

@@ -33,7 +33,7 @@ if ! findmnt -rn -t nfs,nfs4 >/dev/null; then
   systemctl disable --now rpcbind.socket rpcbind.service
 fi
 
-for name in anki lyrics navidrome shigoto kashi sure sure-db; do
+for name in anki lyrics navidrome shigoto kashi sure sure-db happy-travels; do
   file="$stack_dir/.env-$name"
   if [ -f "$file" ]; then chmod 600 "$file"; fi
 done

@@ -30,6 +30,7 @@ services:
       - music
       - kashi
       - sure-web
+      - happy-travels
     labels:
       - com.centurylinklabs.watchtower.enable=true
     read_only: true
@@ -193,6 +194,29 @@ services:
       - ALL
     mem_limit: 1g
     pids_limit: 256
+  happy-travels:
+    # Password gate and static server for a private site. Its files are shipped
+    # into volumes/happy_travels by the site's own repo, see README.
+    image: node:24-alpine
+    restart: unless-stopped
+    command: ["node", "/app/gate.mjs"]
+    env_file:
+      - .env-happy-travels
+    volumes:
+      - ./happy-travels:/app:ro
+      - ./volumes/happy_travels:/site:ro
+    networks:
+      - happy-travels
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    user: 1001:1001
+    mem_limit: 256m
+    pids_limit: 100
   sure-web:
     image: ghcr.io/louismollick/louismollick-server-sure:main
     restart: unless-stopped
@@ -377,6 +401,8 @@ networks:
   kashi: {}
   sure-web: {}
   sure: {}
+  happy-travels:
+    internal: true
   shigoto: {}
   updates: {}
   minecraft: {}
